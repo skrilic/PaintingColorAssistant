@@ -30,7 +30,7 @@ jobs:
           - name: linux-x86_64
             os: ubuntu-22.04
           - name: macos-universal
-            os: macos-14
+            os: macos-latest
           - name: windows-x86_64
             os: windows-latest
     steps:
@@ -39,7 +39,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'macos-14' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.name == 'macos-universal' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: Swatinem/rust-cache@v2
         with:

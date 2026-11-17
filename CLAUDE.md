@@ -30,7 +30,7 @@ cargo run -- <image path>                     # open with a picture
 ## Releases
 
 - `.github/workflows/release.yml` builds on tag `v*` (Linux on ubuntu-22.04, universal
-  macOS `.app` via `lipo`, Windows `.zip`) and publishes with `gh release create`.
+  macOS `.app` via `lipo` on macos-latest, Windows `.zip`) and publishes with `gh release create`.
   Tag must equal `app/Cargo.toml` version. Manual dispatch builds without publishing.
 - Packaging inputs live in `packaging/` (macOS `Info.plist` with `@VERSION@`, Linux
   `.desktop`, `release-notes.md` used as the release body).
