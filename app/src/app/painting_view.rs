@@ -1,0 +1,563 @@
+//! Painting screen: picture controls on the left, canvas in the middle, paints and recipes on the right.
+
+use super::*;
+use crate::grid::{LINE_COLOURS, draw_overlay};
+use crate::ui::{ACCENT, ACCENT_DIM, PANEL2, rrect, rrect_lines, swatch};
+
+impl App {
+    pub(super) fn painting(&mut self, ui: &mut Ui) {
+        let (w, h) = (screen_width(), screen_height());
+        let canvas = Rect::new(LEFT_W, TOP_BAR, (w - LEFT_W - RIGHT_W).max(100.0), h - TOP_BAR - BOTTOM_STRIP);
+        self.canvas(ui, canvas);
+        self.bottom_strip(ui, Rect::new(canvas.x, canvas.y + canvas.h, canvas.w, BOTTOM_STRIP));
+        self.left_panel(ui, Rect::new(0.0, TOP_BAR, LEFT_W, h - TOP_BAR));
+        self.right_panel(ui, Rect::new(w - RIGHT_W, TOP_BAR, RIGHT_W, h - TOP_BAR));
+    }
+
+    fn left_panel(&mut self, ui: &mut Ui, r: Rect) {
+        draw_rectangle(r.x, r.y, r.w, r.h, PANEL);
+        draw_line(r.x + r.w, r.y, r.x + r.w, r.y + r.h, 1.0, BORDER);
+        let x = r.x + 16.0;
+        let bw = r.w - 32.0;
+        let mut y = r.y + 22.0;
+        ui.header("PICTURE", x, y);
+        y += 10.0;
+        if ui.button("open_image", Rect::new(x, y, bw, 32.0), "Open picture...") {
+            self.open_dialog();
+        }
+        y += 38.0;
+        if ui.button("sample_image", Rect::new(x, y, bw, 28.0), "Use sample picture") {
+            self.set_image("Sample landscape".into(), imgproc::sample_landscape(1200, 800));
+        }
+        y += 46.0;
+        if let Some(img) = &self.img {
+            ui.text_fit(&img.name, x, y, 14.0, TEXT, bw);
+            let (ww, hh) = match img.crop {
+                Some((_, _, cw, ch)) => (cw, ch),
+                None => img.original.dimensions(),
+            };
+            let note = if img.crop.is_some() { " (cropped)" } else { "" };
+            ui.text(&format!("{ww} x {hh} px{note}"), x, y + 18.0, 13.0, MUTED);
+        } else {
+            ui.text("No picture yet", x, y, 14.0, MUTED);
+        }
+        y += 44.0;
+
+        ui.header("CROP", x, y);
+        y += 10.0;
+        let half = bw / 2.0 - 3.0;
+        if self.cropping {
+            let names: Vec<String> = CROP_ASPECTS.iter().map(|a| format!("Shape: {}", a.0)).collect();
+            if let Some(i) = ui.dropdown("crop_aspect", Rect::new(x, y, bw, 30.0), &names[self.crop_aspect], &names) {
+                self.crop_aspect = i;
+                self.fit_crop_aspect();
+            }
+            y += 36.0;
+            if ui.button("crop_apply", Rect::new(x, y, half, 30.0), "Apply crop") {
+                self.apply_crop();
+            }
+            if ui.button("crop_cancel", Rect::new(x + half + 6.0, y, half, 30.0), "Cancel") {
+                self.cropping = false;
+            }
+            y += 36.0;
+            ui.text("Drag on the picture to frame it", x, y + 6.0, 13.0, MUTED);
+            y += 16.0;
+        } else {
+            if ui.button("crop_start", Rect::new(x, y, half, 30.0), "Crop...") && self.img.is_some() {
+                self.start_crop();
+            }
+            let cropped = self.img.as_ref().is_some_and(|i| i.crop.is_some());
+            if ui.button("crop_reset", Rect::new(x + half + 6.0, y, half, 30.0), "Undo crop") && cropped {
+                self.reset_crop();
+            }
+            y += 36.0;
+        }
+        y += 20.0;
+
+        ui.header("VIEW", x, y);
+        y += 10.0;
+        for v in View::ALL {
+            if ui.button_ex(v.id(), Rect::new(x, y, bw, 28.0), v.label(), self.view == v) {
+                self.view = v;
+                self.tex_dirty = true;
+            }
+            y += 32.0;
+        }
+        y += 10.0;
+        ui.text("Value levels", x, y + 4.0, 15.0, TEXT);
+        let s = self.value_levels.to_string();
+        ui.text(&s, x + bw - ui.measure(&s, 16.0), y + 4.0, 16.0, ACCENT);
+        ui.hud("value_levels_label");
+        y += 10.0;
+        if ui.slider_int("value_levels", Rect::new(x - 6.0, y, bw + 12.0, 24.0), &mut self.value_levels, 2, 10) {
+            self.values = None;
+            if self.view == View::Colours || self.view == View::Original {
+                self.view = View::Values;
+            }
+            self.tex_dirty = true;
+        }
+        y += 36.0;
+        ui.text("Colour levels", x, y + 4.0, 15.0, TEXT);
+        let s = self.colour_levels.to_string();
+        ui.text(&s, x + bw - ui.measure(&s, 16.0), y + 4.0, 16.0, ACCENT);
+        ui.hud("colour_levels_label");
+        y += 10.0;
+        if ui.slider_int("colour_levels", Rect::new(x - 6.0, y, bw + 12.0, 24.0), &mut self.colour_levels, 2, 24) {
+            self.colours = None;
+            self.highlight = None;
+            self.recipe_scroll = 0;
+            self.view = View::Colours;
+            self.tex_dirty = true;
+        }
+        y += 46.0;
+
+        ui.header("OVERLAY", x, y);
+        y += 10.0;
+        let ids = ["overlay_none", "overlay_thirds", "overlay_fib", "overlay_grid"];
+        let short = ["None", "Rule of thirds", "Fibonacci", "Grid"];
+        for (i, k) in Overlay::ALL.iter().enumerate() {
+            let br = Rect::new(x + (i % 2) as f32 * (half + 6.0), y + (i / 2) as f32 * 32.0, half, 28.0);
+            if ui.button_ex(ids[i], br, short[i], self.overlay.kind == *k) {
+                self.overlay.kind = *k;
+            }
+        }
+        y += 70.0;
+        match self.overlay.kind {
+            Overlay::Grid => {
+                ui.text("Cells on the long side", x, y + 4.0, 14.0, TEXT);
+                let s = self.overlay.cells.to_string();
+                ui.text(&s, x + bw - ui.measure(&s, 15.0), y + 4.0, 15.0, ACCENT);
+                y += 8.0;
+                ui.slider_int("grid_cells", Rect::new(x - 6.0, y, bw + 12.0, 22.0), &mut self.overlay.cells, 2, 20);
+                y += 28.0;
+                ui.checkbox("grid_diagonals", Rect::new(x, y, bw, 22.0), "Diagonals", &mut self.overlay.diagonals);
+                y += 30.0;
+            }
+            Overlay::Fibonacci => {
+                if ui.button_ex("fib_flip_x", Rect::new(x, y, half, 26.0), "Mirror sideways", self.overlay.flip_x) {
+                    self.overlay.flip_x = !self.overlay.flip_x;
+                }
+                if ui.button_ex("fib_flip_y", Rect::new(x + half + 6.0, y, half, 26.0), "Mirror up/down", self.overlay.flip_y) {
+                    self.overlay.flip_y = !self.overlay.flip_y;
+                }
+                y += 34.0;
+            }
+            _ => {}
+        }
+        if self.overlay.kind != Overlay::None {
+            let names: Vec<&str> = LINE_COLOURS.iter().map(|c| c.0).collect();
+            if let Some(i) = ui.segmented("line_colour", Rect::new(x, y, bw + 3.0, 26.0), &names, self.overlay.colour) {
+                self.overlay.colour = i;
+            }
+            y += 32.0;
+            ui.text("Line strength", x, y + 14.0, 13.0, MUTED);
+            ui.slider_f("line_opacity", Rect::new(x + 90.0, y, bw - 84.0, 22.0), &mut self.overlay.opacity, 0.15, 1.0);
+            y += 26.0;
+        }
+        let hy = r.y + r.h - 40.0;
+        if hy > y + 24.0 {
+            ui.text("Tip: drop a picture file on the", x, hy, 13.0, MUTED);
+            ui.text("window to open it.", x, hy + 17.0, 13.0, MUTED);
+        }
+    }
+
+    fn fit_crop_aspect(&mut self) {
+        let (ratio, Some(img), Some(sel)) = (CROP_ASPECTS[self.crop_aspect].1, &self.img, self.crop_sel) else { return };
+        if ratio <= 0.0 {
+            return;
+        }
+        let (ow, oh) = (img.original.width() as f32, img.original.height() as f32);
+        // keep the centre, fit the largest frame of that shape inside the current one
+        let (cx, cy) = (sel.x + sel.w / 2.0, sel.y + sel.h / 2.0);
+        let mut wn = sel.w;
+        let mut hn = wn * ow / (ratio * oh);
+        if hn > sel.h {
+            hn = sel.h;
+            wn = hn * ratio * oh / ow;
+        }
+        let x = (cx - wn / 2.0).clamp(0.0, 1.0 - wn);
+        let y = (cy - hn / 2.0).clamp(0.0, 1.0 - hn);
+        self.crop_sel = Some(Rect::new(x, y, wn, hn));
+    }
+
+    fn fit_rect(area: Rect, iw: f32, ih: f32) -> Rect {
+        let pad = 18.0;
+        let aw = (area.w - 2.0 * pad).max(10.0);
+        let ah = (area.h - 2.0 * pad).max(10.0);
+        let s = (aw / iw).min(ah / ih);
+        let (w, h) = (iw * s, ih * s);
+        Rect::new((area.x + (area.w - w) / 2.0).round(), (area.y + (area.h - h) / 2.0).round(), w.round(), h.round())
+    }
+
+    fn canvas(&mut self, ui: &mut Ui, area: Rect) {
+        draw_rectangle(area.x, area.y, area.w, area.h, Color::new(0.08, 0.085, 0.095, 1.0));
+        ui.mark("canvas", area);
+        let Some(img) = &self.img else {
+            ui.text_centered("Open a picture or use the sample to start", area, 18.0, MUTED);
+            return;
+        };
+        if self.cropping {
+            let (ow, oh) = (img.original.width() as f32, img.original.height() as f32);
+            let ir = Self::fit_rect(area, ow, oh);
+            self.canvas_rect = ir;
+            ui.mark("canvas_image", ir);
+            if let Some(t) = &self.crop_tex {
+                draw_texture_ex(t, ir.x, ir.y, WHITE, DrawTextureParams { dest_size: Some(vec2(ir.w, ir.h)), ..Default::default() });
+            }
+            self.crop_interact(ui, ir, ow, oh);
+            if let Some(s) = self.crop_sel {
+                let sr = Rect::new(ir.x + s.x * ir.w, ir.y + s.y * ir.h, s.w * ir.w, s.h * ir.h);
+                let shade = Color::new(0.0, 0.0, 0.0, 0.6);
+                draw_rectangle(ir.x, ir.y, ir.w, sr.y - ir.y, shade);
+                draw_rectangle(ir.x, sr.y + sr.h, ir.w, ir.y + ir.h - sr.y - sr.h, shade);
+                draw_rectangle(ir.x, sr.y, sr.x - ir.x, sr.h, shade);
+                draw_rectangle(sr.x + sr.w, sr.y, ir.x + ir.w - sr.x - sr.w, sr.h, shade);
+                for i in 1..3 {
+                    let fx = sr.x + sr.w * i as f32 / 3.0;
+                    let fy = sr.y + sr.h * i as f32 / 3.0;
+                    draw_line(fx, sr.y, fx, sr.y + sr.h, 1.0, Color::new(1.0, 1.0, 1.0, 0.35));
+                    draw_line(sr.x, fy, sr.x + sr.w, fy, 1.0, Color::new(1.0, 1.0, 1.0, 0.35));
+                }
+                draw_rectangle_lines(sr.x, sr.y, sr.w, sr.h, 2.0, ACCENT);
+                for c in corners(sr) {
+                    draw_rectangle(c.x - 6.0, c.y - 6.0, 12.0, 12.0, ACCENT);
+                }
+                let label = format!("{} x {} px", (s.w * ow).round(), (s.h * oh).round());
+                let lw = ui.measure(&label, 14.0);
+                rrect(Rect::new(sr.x + 8.0, sr.y + 8.0, lw + 14.0, 22.0), 4.0, Color::new(0.0, 0.0, 0.0, 0.7));
+                ui.text(&label, sr.x + 15.0, sr.y + 24.0, 14.0, TEXT);
+            }
+            return;
+        }
+        let (iw, ih) = (img.work.width() as f32, img.work.height() as f32);
+        let ir = Self::fit_rect(area, iw, ih);
+        self.canvas_rect = ir;
+        ui.mark("canvas_image", ir);
+        if let Some(t) = &self.texture {
+            draw_texture_ex(t, ir.x, ir.y, WHITE, DrawTextureParams { dest_size: Some(vec2(ir.w, ir.h)), ..Default::default() });
+        }
+        let font = ui.font.clone();
+        let label = move |s: &str, x: f32, y: f32, c: Color| {
+            draw_text_ex(s, x, y, TextParams { font: font.as_ref(), font_size: 12, color: c, ..Default::default() });
+        };
+        self.overlay_segments = draw_overlay(ir, &self.overlay, &label);
+        if self.overlay_segments > 0 {
+            ui.hud("overlay");
+        }
+        if let Some(p) = &self.picked {
+            let c = vec2(ir.x + p.pos.x * ir.w, ir.y + p.pos.y * ir.h);
+            draw_circle_lines(c.x, c.y, 9.0, 2.5, BLACK);
+            draw_circle_lines(c.x, c.y, 7.0, 2.0, WHITE);
+        }
+        if ui.clicked(ir) {
+            let n = (ui.input.mouse - ir.point()) / ir.size();
+            let px = ((n.x * iw) as u32).min(iw as u32 - 1);
+            let py = ((n.y * ih) as u32).min(ih as u32 - 1);
+            if self.view == View::Colours {
+                if let Some(c) = &self.colours {
+                    let lvl = c.index[(py * iw as u32 + px) as usize] as usize;
+                    self.highlight = if self.highlight == Some(lvl) { None } else { Some(lvl) };
+                    self.recipe_scroll = lvl.saturating_sub(1);
+                    self.tex_dirty = true;
+                }
+            } else {
+                self.pick_at(n);
+            }
+        }
+    }
+
+    fn crop_interact(&mut self, ui: &mut Ui, ir: Rect, ow: f32, oh: f32) {
+        let m = ui.input.mouse;
+        let n = ((m - ir.point()) / ir.size()).clamp(Vec2::ZERO, Vec2::ONE);
+        let grab = Rect::new(ir.x - 10.0, ir.y - 10.0, ir.w + 20.0, ir.h + 20.0);
+        if ui.clicked(grab) {
+            let mut mode = CropDrag::New(n);
+            if let Some(s) = self.crop_sel {
+                let sr = Rect::new(ir.x + s.x * ir.w, ir.y + s.y * ir.h, s.w * ir.w, s.h * ir.h);
+                if let Some(ci) = corners(sr).iter().position(|c| c.distance(m) < 12.0) {
+                    mode = CropDrag::Corner(ci);
+                } else if sr.contains(m) {
+                    mode = CropDrag::Move(n - vec2(s.x, s.y));
+                }
+            }
+            self.crop_drag = Some(mode);
+        }
+        if !ui.input.down && !ui.input.pressed {
+            self.crop_drag = None;
+        }
+        let Some(drag) = self.crop_drag else { return };
+        let ratio = CROP_ASPECTS[self.crop_aspect].1;
+        let shape = |a: Vec2, b: Vec2| -> Rect {
+            let mut w = (b.x - a.x).abs();
+            let mut h = (b.y - a.y).abs();
+            if ratio > 0.0 {
+                let h_for_w = w * ow / (ratio * oh);
+                if h_for_w <= h || h < 1e-4 {
+                    h = h_for_w;
+                } else {
+                    w = h * ratio * oh / ow;
+                }
+            }
+            let x = if b.x < a.x { a.x - w } else { a.x };
+            let y = if b.y < a.y { a.y - h } else { a.y };
+            let x0 = x.max(0.0);
+            let y0 = y.max(0.0);
+            Rect::new(x0, y0, (x + w).min(1.0) - x0, (y + h).min(1.0) - y0)
+        };
+        match drag {
+            CropDrag::New(a) => self.crop_sel = Some(shape(a, n)),
+            CropDrag::Move(off) => {
+                if let Some(s) = self.crop_sel {
+                    let x = (n.x - off.x).clamp(0.0, 1.0 - s.w);
+                    let y = (n.y - off.y).clamp(0.0, 1.0 - s.h);
+                    self.crop_sel = Some(Rect::new(x, y, s.w, s.h));
+                }
+            }
+            CropDrag::Corner(i) => {
+                if let Some(s) = self.crop_sel {
+                    // the opposite corner stays put
+                    let cs = [vec2(s.x, s.y), vec2(s.x + s.w, s.y), vec2(s.x + s.w, s.y + s.h), vec2(s.x, s.y + s.h)];
+                    self.crop_sel = Some(shape(cs[(i + 2) % 4], n));
+                }
+            }
+        }
+    }
+
+    fn bottom_strip(&mut self, ui: &mut Ui, r: Rect) {
+        draw_rectangle(r.x, r.y, r.w, r.h, PANEL);
+        draw_line(r.x, r.y, r.x + r.w, r.y, 1.0, BORDER);
+        if self.img.is_none() || self.cropping {
+            return;
+        }
+        let x = r.x + 16.0;
+        let bx = x + 62.0;
+        match self.view {
+            View::Original | View::Greyscale | View::Values => {
+                let Some(v) = &self.values else { return };
+                ui.text("Values", x, r.y + 34.0, 14.0, MUTED);
+                let n = v.lightness.len();
+                let bw = ((r.w - 90.0) / n as f32).min(80.0);
+                for i in 0..n {
+                    let g = crate::colour::grey_for_lightness(v.lightness[i]);
+                    let br = Rect::new(bx + i as f32 * bw, r.y + 10.0, bw - 4.0, 38.0);
+                    swatch(br, [g, g, g]);
+                    let tc = if v.lightness[i] > 55.0 { BLACK } else { WHITE };
+                    ui.text(&format!("{}", i + 1), br.x + 6.0, br.y + 16.0, 14.0, tc);
+                    ui.text(&format!("{:.0}%", v.share[i] * 100.0), br.x + 6.0, br.y + 32.0, 12.0, tc);
+                }
+                ui.mark("value_scale", Rect::new(bx, r.y + 10.0, bw * n as f32, 38.0));
+                ui.hud("value_scale");
+            }
+            View::Colours => {
+                let Some(c) = &self.colours else { return };
+                ui.text("Colours", x, r.y + 34.0, 14.0, MUTED);
+                let n = c.srgb.len();
+                let bw = ((r.w - 90.0) / n as f32).min(64.0);
+                let mut clicked = None;
+                for i in 0..n {
+                    let br = Rect::new(bx + i as f32 * bw, r.y + 10.0, bw - 4.0, 38.0);
+                    swatch(br, c.srgb[i]);
+                    if self.highlight == Some(i) {
+                        rrect_lines(Rect::new(br.x - 2.0, br.y - 2.0, br.w + 4.0, br.h + 4.0), 5.0, ACCENT);
+                    }
+                    let tc = if c.lab[i][0] > 55.0 { BLACK } else { WHITE };
+                    if bw > 22.0 {
+                        ui.text(&format!("{}", i + 1), br.x + 5.0, br.y + 16.0, 13.0, tc);
+                    }
+                    ui.mark(&format!("level_chip_{i}"), br);
+                    if ui.clicked(br) {
+                        clicked = Some(i);
+                    }
+                }
+                if let Some(i) = clicked {
+                    self.highlight = if self.highlight == Some(i) { None } else { Some(i) };
+                    self.recipe_scroll = i.saturating_sub(1);
+                    self.tex_dirty = true;
+                }
+                ui.hud("level_strip");
+            }
+        }
+    }
+
+    fn right_panel(&mut self, ui: &mut Ui, r: Rect) {
+        draw_rectangle(r.x, r.y, r.w, r.h, PANEL);
+        draw_line(r.x, r.y, r.x, r.y + r.h, 1.0, BORDER);
+        let x = r.x + 16.0;
+        let bw = r.w - 32.0;
+        let mut y = r.y + 22.0;
+        ui.header("PAINTS FOR THIS PAINTING", x, y);
+        y += 10.0;
+        let labels: Vec<&str> = Medium::ALL.iter().map(|m| m.label()).collect();
+        let cur = Medium::ALL.iter().position(|m| *m == self.medium).unwrap_or(0);
+        if let Some(i) = ui.segmented("medium", Rect::new(x, y, bw + 3.0, 30.0), &labels, cur) {
+            self.select_medium(Medium::ALL[i]);
+        }
+        y += 38.0;
+        let options: Vec<usize> = (0..self.store.palettes.len()).filter(|&i| self.store.palettes[i].medium == self.medium).collect();
+        let names: Vec<String> = options.iter().map(|&i| self.store.palettes[i].name.clone()).collect();
+        let label = self
+            .current_palette()
+            .map(|p| p.name.clone())
+            .unwrap_or_else(|| format!("No {} palette yet", self.medium.label().to_lowercase()));
+        if let Some(k) = ui.dropdown("palette_select", Rect::new(x, y, bw - 96.0, 30.0), &label, &names) {
+            self.palette_idx = Some(options[k]);
+            self.mix_dirty = true;
+        }
+        let edit_label = if options.is_empty() { "Create" } else { "Edit" };
+        if ui.button("edit_palettes", Rect::new(x + bw - 90.0, y, 90.0, 30.0), edit_label) {
+            self.screen = Screen::Palettes;
+            if options.is_empty() {
+                self.new_palette(self.medium);
+            } else {
+                self.edit_palette = self.palette_idx;
+                self.select_paint(None);
+            }
+        }
+        ui.hud("palette");
+        y += 40.0;
+        // palette strip
+        let mut tip = None;
+        if let Some(p) = self.current_palette() {
+            let n = p.paints.len();
+            let per_row = ((bw + 4.0) / 34.0).floor().max(1.0) as usize;
+            for (i, paint) in p.paints.iter().enumerate() {
+                let cx = x + 14.0 + (i % per_row) as f32 * 34.0;
+                let cy = y + 14.0 + (i / per_row) as f32 * 34.0;
+                draw_circle(cx, cy, 14.0, col(paint.color));
+                draw_circle_lines(cx, cy, 14.0, 1.0, Color::new(1.0, 1.0, 1.0, 0.2));
+                transparency_mark(cx, cy, paint.transparency);
+                if vec2(cx, cy).distance(ui.input.mouse) < 14.0 {
+                    tip = Some((format!("{}  ({})", paint.title(), paint.transparency.label()), cx, cy));
+                }
+            }
+            if n == 0 {
+                ui.text("This palette has no paints yet", x, y + 18.0, 14.0, MUTED);
+            }
+            y += 34.0 * n.div_ceil(per_row).max(1) as f32 + 6.0;
+        } else {
+            ui.text("Create a palette for this kind of paint first.", x, y + 14.0, 14.0, MUTED);
+            y += 34.0;
+        }
+        // mixing options
+        ui.text("Paints per mix", x, y + 18.0, 14.0, TEXT);
+        if let Some(i) = ui.segmented("max_paints", Rect::new(x + 104.0, y, 117.0, 26.0), &["1", "2", "3"], self.max_paints as usize - 1) {
+            self.max_paints = i as i32 + 1;
+            self.mix_dirty = true;
+        }
+        let lab = if self.medium.uses_water() { "Lighten with water" } else { "Lighten with white" };
+        if ui.checkbox("allow_lighten", Rect::new(x + 236.0, y, bw - 236.0, 26.0), lab, &mut self.allow_lighten) {
+            self.mix_dirty = true;
+        }
+        y += 40.0;
+
+        // clicked spot
+        draw_line(x, y, x + bw, y, 1.0, BORDER);
+        y += 22.0;
+        ui.header("CLICKED SPOT", x, y);
+        y += 10.0;
+        ui.hud("picked");
+        if let Some(p) = &self.picked {
+            swatch(Rect::new(x, y, 44.0, 44.0), p.srgb);
+            if let (Some(rc), Some(m)) = (&p.recipe, &self.mixer) {
+                swatch(Rect::new(x + 48.0, y, 44.0, 44.0), rc.srgb);
+                recipe_text(ui, m, rc, x + 104.0, y + 16.0, bw - 104.0);
+            } else {
+                ui.text("No paints to mix with", x + 56.0, y + 26.0, 14.0, MUTED);
+            }
+            ui.text("picture", x + 2.0, y + 58.0, 11.0, MUTED);
+            ui.text("mix", x + 60.0, y + 58.0, 11.0, MUTED);
+            y += 68.0;
+        } else {
+            let hint = if self.view == View::Colours {
+                "Click the picture to pick out one colour level."
+            } else {
+                "Click anywhere on the picture to get its recipe."
+            };
+            ui.text(hint, x, y + 16.0, 14.0, MUTED);
+            y += 32.0;
+        }
+        draw_line(x, y, x + bw, y, 1.0, BORDER);
+        y += 22.0;
+
+        // recipes
+        let done = self.recipes.iter().filter(|r| r.is_some()).count();
+        let total = self.colours.as_ref().map(|c| c.lab.len()).unwrap_or(0);
+        let head = if total > 0 && done < total {
+            format!("RECIPES FOR {total} COLOUR LEVELS  (mixing {done}/{total})")
+        } else {
+            format!("RECIPES FOR {total} COLOUR LEVELS")
+        };
+        ui.header(&head, x, y);
+        ui.hud("recipes");
+        y += 8.0;
+        let list = Rect::new(r.x, y, r.w, r.y + r.h - y);
+        ui.mark("recipe_list", list);
+        let (Some(c), Some(m)) = (&self.colours, &self.mixer) else {
+            if self.img.is_none() {
+                ui.text("Open a picture to see its colour levels.", x, y + 20.0, 14.0, MUTED);
+            }
+            self.draw_tip(ui, tip);
+            return;
+        };
+        let visible = ((list.h - 4.0) / RECIPE_ROW_H).floor().max(1.0) as usize;
+        let max_scroll = total.saturating_sub(visible);
+        if ui.hovered(list) && ui.input.wheel != 0.0 {
+            if ui.input.wheel < 0.0 {
+                self.recipe_scroll += 1;
+            } else {
+                self.recipe_scroll = self.recipe_scroll.saturating_sub(1);
+            }
+        }
+        self.recipe_scroll = self.recipe_scroll.min(max_scroll);
+        let nvals = self.value_levels as usize;
+        let mut clicked = None;
+        for (row, i) in (self.recipe_scroll..total).take(visible).enumerate() {
+            let rr = Rect::new(x - 6.0, y + row as f32 * RECIPE_ROW_H, bw + 12.0, RECIPE_ROW_H - 4.0);
+            ui.mark(&format!("recipe_row_{i}"), rr);
+            let hl = self.highlight == Some(i);
+            rrect(rr, 6.0, if hl { ACCENT_DIM } else if ui.hovered(rr) { PANEL2 } else { BG });
+            let sx = rr.x + 6.0;
+            swatch(Rect::new(sx, rr.y + 6.0, 24.0, 50.0), c.srgb[i]);
+            let value_no = self
+                .img
+                .as_ref()
+                .map(|img| imgproc::value_level_of(c.lab[i][0], &img.analysis, nvals) + 1)
+                .unwrap_or(0);
+            match &self.recipes[i] {
+                Some(rc) => {
+                    swatch(Rect::new(sx + 27.0, rr.y + 6.0, 24.0, 50.0), rc.srgb);
+                    let tx = sx + 62.0;
+                    let info = format!("{}.   {:.0}% of the picture   value {}/{}", i + 1, c.share[i] * 100.0, value_no, nvals);
+                    ui.text(&info, tx, rr.y + 17.0, 12.0, MUTED);
+                    recipe_text(ui, m, rc, tx, rr.y + 36.0, rr.w - (tx - rr.x) - 8.0);
+                }
+                None => ui.text("mixing...", sx + 62.0, rr.y + 34.0, 14.0, MUTED),
+            }
+            if ui.clicked(rr) {
+                clicked = Some(i);
+            }
+        }
+        if total > visible {
+            let track = Rect::new(r.x + r.w - 6.0, y, 3.0, visible as f32 * RECIPE_ROW_H);
+            draw_rectangle(track.x, track.y, track.w, track.h, PANEL2);
+            let th = track.h * visible as f32 / total as f32;
+            let ty = track.y + (track.h - th) * self.recipe_scroll as f32 / max_scroll.max(1) as f32;
+            draw_rectangle(track.x, ty, track.w, th, MUTED);
+        }
+        if let Some(i) = clicked {
+            self.highlight = if self.highlight == Some(i) { None } else { Some(i) };
+            self.view = View::Colours;
+            self.tex_dirty = true;
+        }
+        self.draw_tip(ui, tip);
+    }
+
+    fn draw_tip(&self, ui: &Ui, tip: Option<(String, f32, f32)>) {
+        let Some((s, cx, cy)) = tip else { return };
+        let tw = ui.measure(&s, 14.0);
+        let tx = (cx - tw / 2.0).clamp(4.0, screen_width() - tw - 14.0);
+        rrect(Rect::new(tx - 6.0, cy + 18.0, tw + 12.0, 24.0), 4.0, BG);
+        rrect_lines(Rect::new(tx - 6.0, cy + 18.0, tw + 12.0, 24.0), 4.0, BORDER);
+        ui.text(&s, tx, cy + 35.0, 14.0, TEXT);
+    }
+}

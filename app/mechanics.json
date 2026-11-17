@@ -1,0 +1,361 @@
+{
+  "version": 1,
+  "values": [
+    {
+      "name": "screens",
+      "group": "flow",
+      "value": "Palettes, Painting",
+      "source": "request"
+    },
+    {
+      "name": "open picture",
+      "group": "controls",
+      "value": "file dialog, drag and drop, command line",
+      "source": "request"
+    },
+    {
+      "name": "pick colour",
+      "group": "controls",
+      "value": "left click on picture",
+      "estimated": true
+    },
+    {
+      "name": "pick sample size",
+      "group": "controls",
+      "value": 5,
+      "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "crop",
+      "group": "controls",
+      "value": "drag frame, corner handles, apply / undo",
+      "source": "request"
+    },
+    {
+      "name": "crop handle grab radius",
+      "group": "controls",
+      "value": 12,
+      "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "crop shapes",
+      "group": "controls",
+      "value": "Free, 1:1, 4:5, 3:4, 2:3, 5:4, 4:3, 3:2, 16:9",
+      "estimated": true
+    },
+    {
+      "name": "list scroll",
+      "group": "controls",
+      "value": "mouse wheel, 1 row per notch",
+      "estimated": true
+    },
+    {
+      "name": "delete palette needs confirm",
+      "group": "controls",
+      "value": true,
+      "estimated": true
+    },
+    {
+      "name": "palettes autosave",
+      "group": "flow",
+      "value": true,
+      "estimated": true
+    },
+    {
+      "name": "working copy longest side",
+      "group": "image",
+      "value": 1400,
+      "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "views",
+      "group": "image",
+      "value": "Original, Greyscale, Value levels, Colour levels",
+      "source": "request"
+    },
+    {
+      "name": "value levels default",
+      "group": "image",
+      "value": 5,
+      "unit": "levels",
+      "estimated": true
+    },
+    {
+      "name": "value levels min",
+      "group": "image",
+      "value": 2,
+      "unit": "levels",
+      "estimated": true
+    },
+    {
+      "name": "value levels max",
+      "group": "image",
+      "value": 10,
+      "unit": "levels",
+      "estimated": true
+    },
+    {
+      "name": "value range low percentile",
+      "group": "image",
+      "value": 0.5,
+      "unit": "%",
+      "estimated": true
+    },
+    {
+      "name": "value range high percentile",
+      "group": "image",
+      "value": 99.5,
+      "unit": "%",
+      "estimated": true
+    },
+    {
+      "name": "colour levels default",
+      "group": "image",
+      "value": 8,
+      "unit": "levels",
+      "estimated": true
+    },
+    {
+      "name": "colour levels min",
+      "group": "image",
+      "value": 2,
+      "unit": "levels",
+      "estimated": true
+    },
+    {
+      "name": "colour levels max",
+      "group": "image",
+      "value": 24,
+      "unit": "levels",
+      "estimated": true
+    },
+    {
+      "name": "k-means samples",
+      "group": "image",
+      "value": 60000,
+      "unit": "pixels",
+      "estimated": true
+    },
+    {
+      "name": "k-means iterations",
+      "group": "image",
+      "value": 12,
+      "estimated": true
+    },
+    {
+      "name": "media",
+      "group": "mixing",
+      "value": "Watercolor, Acrylic, Oil",
+      "source": "request"
+    },
+    {
+      "name": "scattering transparent",
+      "group": "mixing",
+      "value": 0.12,
+      "estimated": true
+    },
+    {
+      "name": "scattering half-transparent",
+      "group": "mixing",
+      "value": 0.45,
+      "estimated": true
+    },
+    {
+      "name": "scattering opaque",
+      "group": "mixing",
+      "value": 1.6,
+      "estimated": true
+    },
+    {
+      "name": "paper colour",
+      "group": "mixing",
+      "value": "#F7F4EC",
+      "estimated": true
+    },
+    {
+      "name": "default white",
+      "group": "mixing",
+      "value": "Titanium White #F6F6F2",
+      "estimated": true
+    },
+    {
+      "name": "water pigment loads",
+      "group": "mixing",
+      "value": "1.0, 0.75, 0.55, 0.40, 0.30, 0.22, 0.16, 0.11, 0.075, 0.05, 0.033, 0.02",
+      "estimated": true
+    },
+    {
+      "name": "white parts tried",
+      "group": "mixing",
+      "value": "0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 40",
+      "estimated": true
+    },
+    {
+      "name": "pair parts max",
+      "group": "mixing",
+      "value": 6,
+      "unit": "parts",
+      "estimated": true
+    },
+    {
+      "name": "triple parts max",
+      "group": "mixing",
+      "value": 4,
+      "unit": "parts",
+      "estimated": true
+    },
+    {
+      "name": "paints per mix default",
+      "group": "mixing",
+      "value": 3,
+      "unit": "paints",
+      "estimated": true
+    },
+    {
+      "name": "extra paint penalty",
+      "group": "mixing",
+      "value": 0.8,
+      "unit": "dE",
+      "estimated": true
+    },
+    {
+      "name": "colour difference",
+      "group": "mixing",
+      "value": "CIE76 dE",
+      "estimated": true
+    },
+    {
+      "name": "match excellent below",
+      "group": "mixing",
+      "value": 2.5,
+      "unit": "dE",
+      "estimated": true
+    },
+    {
+      "name": "match good below",
+      "group": "mixing",
+      "value": 5,
+      "unit": "dE",
+      "estimated": true
+    },
+    {
+      "name": "match close below",
+      "group": "mixing",
+      "value": 10,
+      "unit": "dE",
+      "estimated": true
+    },
+    {
+      "name": "tinting strength min",
+      "group": "mixing",
+      "value": 0.2,
+      "estimated": true
+    },
+    {
+      "name": "tinting strength max",
+      "group": "mixing",
+      "value": 3.0,
+      "estimated": true
+    },
+    {
+      "name": "tinting strength default",
+      "group": "mixing",
+      "value": 1.0,
+      "estimated": true
+    },
+    {
+      "name": "recipe budget per frame",
+      "group": "mixing",
+      "value": 12,
+      "unit": "ms",
+      "estimated": true
+    },
+    {
+      "name": "transparency choices",
+      "group": "palettes",
+      "value": "Transparent, Half-transparent, Opaque",
+      "source": "request"
+    },
+    {
+      "name": "starter palettes",
+      "group": "palettes",
+      "value": "Watercolor 1, Watercolor 2, Acrylic 1, Acrylic 2, Oil 1",
+      "source": "request"
+    },
+    {
+      "name": "pigment library size",
+      "group": "palettes",
+      "value": 45,
+      "unit": "pigments",
+      "estimated": true
+    },
+    {
+      "name": "overlays",
+      "group": "overlay",
+      "value": "None, Rule of thirds, Fibonacci spiral, Grid",
+      "source": "request"
+    },
+    {
+      "name": "golden ratio",
+      "group": "overlay",
+      "value": 1.618034,
+      "estimated": true
+    },
+    {
+      "name": "fibonacci steps",
+      "group": "overlay",
+      "value": 12,
+      "estimated": true
+    },
+    {
+      "name": "grid cells default",
+      "group": "overlay",
+      "value": 6,
+      "unit": "cells",
+      "estimated": true
+    },
+    {
+      "name": "grid cells min",
+      "group": "overlay",
+      "value": 2,
+      "unit": "cells",
+      "estimated": true
+    },
+    {
+      "name": "grid cells max",
+      "group": "overlay",
+      "value": 20,
+      "unit": "cells",
+      "estimated": true
+    },
+    {
+      "name": "line opacity default",
+      "group": "overlay",
+      "value": 0.8,
+      "estimated": true
+    },
+    {
+      "name": "line colours",
+      "group": "overlay",
+      "value": "White, Black, Red",
+      "estimated": true
+    },
+    {
+      "name": "window width",
+      "group": "window",
+      "value": 1400,
+      "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "window height",
+      "group": "window",
+      "value": 880,
+      "unit": "px",
+      "estimated": true
+    }
+  ]
+}

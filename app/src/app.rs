@@ -1,0 +1,497 @@
+//! The two screens: Palettes (build paint palettes) and Painting (study the picture, get recipes).
+
+mod painting_view;
+mod palettes_view;
+
+use crate::colour::{srgb8_to_lab, to_hex};
+use crate::grid::{Overlay, OverlaySettings};
+use crate::imgproc::{self, Analysis, ColourLevels, ValueLevels};
+use crate::km::{Mixer, Recipe, match_label};
+use crate::palette::{self, Medium, Palette, Store, Transparency};
+use crate::ui::{self, BAD, BG, BORDER, GOOD, MUTED, PANEL, TEXT, Ui, WARN, col};
+use image::RgbImage;
+use macroquad::prelude::*;
+use std::time::Instant;
+
+pub const TOP_BAR: f32 = 52.0;
+pub const LEFT_W: f32 = 250.0;
+pub const RIGHT_W: f32 = 430.0;
+pub const BOTTOM_STRIP: f32 = 58.0;
+pub const RECIPE_ROW_H: f32 = 66.0;
+/// Time per frame spent on recipe search, so the window stays responsive.
+pub const RECIPE_BUDGET_MS: f64 = 12.0;
+
+pub const CROP_ASPECTS: [(&str, f32); 9] = [
+    ("Free", 0.0),
+    ("1:1", 1.0),
+    ("4:5", 0.8),
+    ("3:4", 0.75),
+    ("2:3", 0.6667),
+    ("5:4", 1.25),
+    ("4:3", 1.3333),
+    ("3:2", 1.5),
+    ("16:9", 1.7778),
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Screen {
+    Palettes,
+    Painting,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum View {
+    Original,
+    Greyscale,
+    Values,
+    Colours,
+}
+
+impl View {
+    pub const ALL: [View; 4] = [View::Original, View::Greyscale, View::Values, View::Colours];
+    pub fn label(self) -> &'static str {
+        match self {
+            View::Original => "Original",
+            View::Greyscale => "Greyscale",
+            View::Values => "Value levels",
+            View::Colours => "Colour levels",
+        }
+    }
+    pub fn id(self) -> &'static str {
+        match self {
+            View::Original => "view_original",
+            View::Greyscale => "view_grey",
+            View::Values => "view_values",
+            View::Colours => "view_colours",
+        }
+    }
+}
+
+pub struct LoadedImage {
+    pub name: String,
+    pub original: RgbImage,
+    pub crop: Option<(u32, u32, u32, u32)>,
+    pub work: RgbImage,
+    pub analysis: Analysis,
+}
+
+#[derive(Clone, Copy)]
+enum CropDrag {
+    New(Vec2),
+    Move(Vec2),
+    Corner(usize),
+}
+
+pub struct Picked {
+    pub pos: Vec2,
+    pub srgb: [u8; 3],
+    pub recipe: Option<Recipe>,
+}
+
+pub struct App {
+    pub store: Store,
+    pub persist: bool,
+    dirty: bool,
+    pub screen: Screen,
+    pub medium: Medium,
+    pub palette_idx: Option<usize>,
+
+    pub edit_palette: Option<usize>,
+    pub edit_paint: Option<usize>,
+    hex_edit: String,
+    lib_search: String,
+    lib_scroll: usize,
+    paint_scroll: usize,
+    confirm_delete: bool,
+
+    pub img: Option<LoadedImage>,
+    pub view: View,
+    pub value_levels: i32,
+    pub colour_levels: i32,
+    pub values: Option<ValueLevels>,
+    pub colours: Option<ColourLevels>,
+    texture: Option<Texture2D>,
+    tex_dirty: bool,
+    pub display_rgba: Vec<u8>,
+    crop_tex: Option<Texture2D>,
+    pub highlight: Option<usize>,
+    pub overlay: OverlaySettings,
+    pub overlay_segments: usize,
+
+    pub cropping: bool,
+    crop_aspect: usize,
+    pub crop_sel: Option<Rect>,
+    crop_drag: Option<CropDrag>,
+
+    pub mixer: Option<Mixer>,
+    mix_dirty: bool,
+    pub recipes: Vec<Option<Recipe>>,
+    pub max_paints: i32,
+    pub allow_lighten: bool,
+    pub picked: Option<Picked>,
+    recipe_scroll: usize,
+
+    status: String,
+    status_until: f64,
+    pub canvas_rect: Rect,
+}
+
+impl App {
+    pub fn new(store: Store, persist: bool, first_start: bool) -> Self {
+        let mut app = App {
+            store,
+            persist,
+            dirty: false,
+            screen: if first_start { Screen::Palettes } else { Screen::Painting },
+            medium: Medium::Watercolor,
+            palette_idx: None,
+            edit_palette: None,
+            edit_paint: None,
+            hex_edit: String::new(),
+            lib_search: String::new(),
+            lib_scroll: 0,
+            paint_scroll: 0,
+            confirm_delete: false,
+            img: None,
+            view: View::Original,
+            value_levels: 5,
+            colour_levels: 8,
+            values: None,
+            colours: None,
+            texture: None,
+            tex_dirty: true,
+            display_rgba: Vec::new(),
+            crop_tex: None,
+            highlight: None,
+            overlay: OverlaySettings {
+                kind: Overlay::None,
+                cells: 6,
+                diagonals: false,
+                flip_x: false,
+                flip_y: false,
+                colour: 0,
+                opacity: 0.8,
+            },
+            overlay_segments: 0,
+            cropping: false,
+            crop_aspect: 0,
+            crop_sel: None,
+            crop_drag: None,
+            mixer: None,
+            mix_dirty: true,
+            recipes: Vec::new(),
+            max_paints: 3,
+            allow_lighten: true,
+            picked: None,
+            recipe_scroll: 0,
+            status: String::new(),
+            status_until: 0.0,
+            canvas_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
+        };
+        app.select_medium(Medium::Watercolor);
+        app.edit_palette = if app.store.palettes.is_empty() { None } else { Some(0) };
+        app
+    }
+
+    fn say(&mut self, s: impl Into<String>) {
+        self.status = s.into();
+        self.status_until = get_time() + 5.0;
+    }
+
+    // ---------- palettes ----------
+
+    pub fn select_medium(&mut self, m: Medium) {
+        self.medium = m;
+        let keep = self.palette_idx.filter(|&i| self.store.palettes.get(i).is_some_and(|p| p.medium == m));
+        self.palette_idx = keep.or_else(|| self.store.palettes.iter().position(|p| p.medium == m));
+        self.mix_dirty = true;
+    }
+
+    fn palettes_changed(&mut self) {
+        self.dirty = true;
+        self.mix_dirty = true;
+    }
+
+    pub fn current_palette(&self) -> Option<&Palette> {
+        self.palette_idx.and_then(|i| self.store.palettes.get(i))
+    }
+
+    fn new_palette(&mut self, medium: Medium) {
+        let n = self.store.palettes.iter().filter(|p| p.medium == medium).count() + 1;
+        self.store.palettes.push(Palette { name: format!("{} {}", medium.label(), n), medium, paints: Vec::new() });
+        let i = self.store.palettes.len() - 1;
+        self.edit_palette = Some(i);
+        self.edit_paint = None;
+        self.palettes_changed();
+        self.say(format!("New palette \"{}\": add paints from the library", self.store.palettes[i].name));
+    }
+
+    pub fn select_paint(&mut self, i: Option<usize>) {
+        self.edit_paint = i;
+        if let (Some(p), Some(i)) = (self.edit_palette, i) {
+            if let Some(paint) = self.store.palettes.get(p).and_then(|pal| pal.paints.get(i)) {
+                self.hex_edit = to_hex(paint.color);
+            }
+        }
+    }
+
+    // ---------- image ----------
+
+    pub fn set_image(&mut self, name: String, img: RgbImage) {
+        let work = imgproc::fit_working(&img);
+        let analysis = imgproc::analyse(&work);
+        self.img = Some(LoadedImage { name, original: img, crop: None, work, analysis });
+        self.cropping = false;
+        self.crop_tex = None;
+        self.image_changed();
+    }
+
+    fn image_changed(&mut self) {
+        self.values = None;
+        self.colours = None;
+        self.tex_dirty = true;
+        self.highlight = None;
+        self.picked = None;
+        self.recipes.clear();
+        self.recipe_scroll = 0;
+    }
+
+    fn apply_crop(&mut self) {
+        let Some(sel) = self.crop_sel else { return };
+        let Some(img) = &mut self.img else { return };
+        let (w, h) = img.original.dimensions();
+        let x = (sel.x * w as f32).round().clamp(0.0, w as f32 - 1.0) as u32;
+        let y = (sel.y * h as f32).round().clamp(0.0, h as f32 - 1.0) as u32;
+        let cw = ((sel.w * w as f32).round() as u32).clamp(1, w - x);
+        let ch = ((sel.h * h as f32).round() as u32).clamp(1, h - y);
+        if cw < 8 || ch < 8 {
+            self.say("The crop frame is too small");
+            return;
+        }
+        img.crop = Some((x, y, cw, ch));
+        img.work = imgproc::fit_working(&imgproc::crop(&img.original, (x, y, cw, ch)));
+        img.analysis = imgproc::analyse(&img.work);
+        self.cropping = false;
+        self.image_changed();
+        self.say(format!("Cropped to {cw} x {ch} pixels"));
+    }
+
+    fn reset_crop(&mut self) {
+        let Some(img) = &mut self.img else { return };
+        img.crop = None;
+        img.work = imgproc::fit_working(&img.original);
+        img.analysis = imgproc::analyse(&img.work);
+        self.cropping = false;
+        self.image_changed();
+    }
+
+    fn start_crop(&mut self) {
+        let Some(img) = &self.img else { return };
+        let full = imgproc::fit_working(&img.original);
+        let t = Texture2D::from_rgba8(full.width() as u16, full.height() as u16, &imgproc::rgba(&full));
+        t.set_filter(FilterMode::Linear);
+        self.crop_tex = Some(t);
+        self.crop_sel = Some(match img.crop {
+            Some((x, y, w, h)) => {
+                let (ow, oh) = (img.original.width() as f32, img.original.height() as f32);
+                Rect::new(x as f32 / ow, y as f32 / oh, w as f32 / ow, h as f32 / oh)
+            }
+            None => Rect::new(0.1, 0.1, 0.8, 0.8),
+        });
+        self.cropping = true;
+    }
+
+    fn open_dialog(&mut self) {
+        let file = rfd::FileDialog::new()
+            .add_filter("Images", &["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"])
+            .set_title("Open a picture")
+            .pick_file();
+        if let Some(path) = file {
+            self.open_path(&path);
+        }
+    }
+
+    pub fn open_path(&mut self, path: &std::path::Path) {
+        match imgproc::load_path(path) {
+            Ok(img) => {
+                let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                self.say(format!("Opened {name}"));
+                self.set_image(name, img);
+            }
+            Err(e) => self.say(format!("Could not open that picture: {e}")),
+        }
+    }
+
+    pub fn open_bytes(&mut self, bytes: &[u8]) {
+        match imgproc::load_bytes(bytes) {
+            Ok(img) => self.set_image("Dropped picture".into(), img),
+            Err(e) => self.say(format!("Could not open that picture: {e}")),
+        }
+    }
+
+    /// Bring derived data (levels, texture, mixer, recipes) up to date.
+    pub fn update_derived(&mut self) {
+        if self.mix_dirty {
+            self.mix_dirty = false;
+            self.mixer = self.current_palette().map(Mixer::new);
+            self.recipes.clear();
+            if let (Some(p), Some(m)) = (&mut self.picked, &self.mixer) {
+                p.recipe = m.find(srgb8_to_lab(p.srgb), self.max_paints as usize, self.allow_lighten);
+            }
+        }
+        let Some(img) = &self.img else { return };
+        if self.values.is_none() {
+            self.values = Some(imgproc::value_levels(&img.analysis, self.value_levels as usize));
+            self.tex_dirty = true;
+        }
+        if self.colours.is_none() {
+            self.colours = Some(imgproc::colour_levels(&img.work, &img.analysis, self.colour_levels as usize));
+            self.recipes.clear();
+            self.tex_dirty = true;
+        }
+        if self.tex_dirty {
+            self.tex_dirty = false;
+            self.display_rgba = match self.view {
+                View::Original => imgproc::rgba(&img.work),
+                View::Greyscale => imgproc::greyscale(&img.analysis),
+                View::Values => {
+                    let v = self.values.as_ref().unwrap();
+                    let greys: Vec<[u8; 3]> = v
+                        .lightness
+                        .iter()
+                        .map(|&l| {
+                            let g = crate::colour::grey_for_lightness(l);
+                            [g, g, g]
+                        })
+                        .collect();
+                    imgproc::render_levels(&v.index, &greys, None)
+                }
+                View::Colours => {
+                    let c = self.colours.as_ref().unwrap();
+                    imgproc::render_levels(&c.index, &c.srgb, self.highlight)
+                }
+            };
+            let (w, h) = img.work.dimensions();
+            match &self.texture {
+                Some(t) if t.width() as u32 == w && t.height() as u32 == h => t.update_from_bytes(w, h, &self.display_rgba),
+                _ => {
+                    let t = Texture2D::from_rgba8(w as u16, h as u16, &self.display_rgba);
+                    t.set_filter(FilterMode::Linear);
+                    self.texture = Some(t);
+                }
+            }
+        }
+        // Recipes, a few per frame.
+        if let (Some(c), Some(m)) = (&self.colours, &self.mixer) {
+            if self.recipes.len() != c.lab.len() {
+                self.recipes = vec![None; c.lab.len()];
+            }
+            let start = Instant::now();
+            for i in 0..c.lab.len() {
+                if self.recipes[i].is_none() {
+                    self.recipes[i] = m.find(c.lab[i], self.max_paints as usize, self.allow_lighten);
+                    if start.elapsed().as_secs_f64() * 1000.0 > RECIPE_BUDGET_MS {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Pick the colour at a spot of the picture (0..1 coordinates) and find its recipe.
+    pub fn pick_at(&mut self, n: Vec2) {
+        self.update_derived();
+        let Some(img) = &self.img else { return };
+        let (iw, ih) = img.work.dimensions();
+        let px = ((n.x * iw as f32) as u32).min(iw - 1);
+        let py = ((n.y * ih as f32) as u32).min(ih - 1);
+        let srgb = imgproc::sample_avg(&img.work, px, py, 2);
+        let recipe = self.mixer.as_ref().and_then(|m| m.find(srgb8_to_lab(srgb), self.max_paints as usize, self.allow_lighten));
+        self.picked = Some(Picked { pos: n, srgb, recipe });
+    }
+
+    pub fn recipes_done(&self) -> bool {
+        self.colours.as_ref().is_some_and(|c| self.recipes.len() == c.lab.len() && self.recipes.iter().all(|r| r.is_some()))
+    }
+
+    fn save_if_needed(&mut self) {
+        if self.dirty {
+            self.dirty = false;
+            if self.persist {
+                if let Err(e) = palette::save_store(&self.store) {
+                    self.say(format!("Could not save palettes: {e}"));
+                }
+            }
+        }
+    }
+
+    // ---------- frame ----------
+
+    pub fn frame(&mut self, ui: &mut Ui) {
+        clear_background(BG);
+        self.update_derived();
+        match self.screen {
+            Screen::Painting => self.painting(ui),
+            Screen::Palettes => self.palettes(ui),
+        }
+        self.top_bar(ui);
+        ui.end();
+        self.save_if_needed();
+    }
+
+    fn top_bar(&mut self, ui: &mut Ui) {
+        let w = screen_width();
+        draw_rectangle(0.0, 0.0, w, TOP_BAR, PANEL);
+        draw_line(0.0, TOP_BAR, w, TOP_BAR, 1.0, BORDER);
+        // a tiny palette logo drawn from circles
+        for (i, c) in [[200u8, 50, 60], [240, 170, 40], [40, 90, 170]].iter().enumerate() {
+            draw_circle(22.0 + i as f32 * 9.0, 26.0 + if i == 1 { -5.0 } else { 2.0 }, 7.0, col(*c));
+        }
+        ui.text("Painting Colour Assistant", 50.0, 32.0, 18.0, TEXT);
+        let tabs = Rect::new(LEFT_W + 20.0, 10.0, 260.0, 32.0);
+        if ui.button_ex("tab_palettes", Rect::new(tabs.x, tabs.y, 125.0, tabs.h), "1  Palettes", self.screen == Screen::Palettes) {
+            self.screen = Screen::Palettes;
+        }
+        if ui.button_ex("tab_painting", Rect::new(tabs.x + 131.0, tabs.y, 125.0, tabs.h), "2  Painting", self.screen == Screen::Painting) {
+            self.screen = Screen::Painting;
+        }
+        if get_time() < self.status_until {
+            let sw = ui.measure(&self.status, 15.0);
+            ui.text(&self.status, (w - sw - 20.0).max(tabs.x + 280.0), 32.0, 15.0, ui::ACCENT);
+        }
+    }
+}
+
+fn corners(r: Rect) -> [Vec2; 4] {
+    [vec2(r.x, r.y), vec2(r.x + r.w, r.y), vec2(r.x + r.w, r.y + r.h), vec2(r.x, r.y + r.h)]
+}
+
+/// Small sign inside a paint dot: empty ring = transparent, half disc = half-transparent, full = opaque.
+fn transparency_mark(cx: f32, cy: f32, t: Transparency) {
+    let c = Color::new(1.0, 1.0, 1.0, 0.85);
+    let shadow = Color::new(0.0, 0.0, 0.0, 0.5);
+    draw_circle_lines(cx, cy, 4.5, 2.5, shadow);
+    match t {
+        Transparency::Transparent => draw_circle_lines(cx, cy, 4.0, 1.2, c),
+        Transparency::HalfTransparent => {
+            draw_circle_lines(cx, cy, 4.0, 1.2, c);
+            draw_rectangle(cx - 4.0, cy, 8.0, 3.6, c);
+        }
+        Transparency::Opaque => draw_circle(cx, cy, 4.0, c),
+    }
+}
+
+fn recipe_text(ui: &Ui, m: &Mixer, rc: &Recipe, x: f32, y: f32, w: f32) {
+    ui.text_fit(&m.describe_parts(rc), x, y, 15.0, TEXT, w);
+    let mc = if rc.de < 5.0 {
+        GOOD
+    } else if rc.de < 10.0 {
+        WARN
+    } else {
+        BAD
+    };
+    let ml = format!("{}  (dE {:.1})", match_label(rc.de), rc.de);
+    let mw = ui.measure(&ml, 12.0);
+    ui.text_fit(&m.describe_lighten(rc), x, y + 17.0, 13.0, MUTED, w - mw - 10.0);
+    ui.text(&ml, x + w - mw, y + 17.0, 12.0, mc);
+}

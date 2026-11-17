@@ -1,0 +1,46 @@
+{
+  "revision": 4,
+  "brief": {
+    "question": "Build a desktop painting colour assistant: open an image, crop it, view a greyscale value study with N levels, a colour-reduced version with N levels, overlay a composition grid (rule of thirds, Fibonacci spiral, square grid), and for each reduced colour compute a Kubelka-Munk mixing recipe from a user-defined pigment palette (watercolor / acrylic / oil, with transparency per paint).",
+    "purpose": "Tool for an artist planning a painting; no original program to match, built from the request alone.",
+    "targets": [],
+    "constraints": [
+      "Rust + macroquad in app/",
+      "No target: build from request",
+      "--screenshot and --self-test options required",
+      "Only change files in app/"
+    ],
+    "done_when": "cargo build succeeds, screenshot shows the workspace with a sample image, self-test passes move/act/hud, palettes can be created and saved, recipes shown per colour."
+  },
+  "plan": [
+    {
+      "title": "Set up the project and the paint-mixing maths",
+      "status": "done"
+    },
+    {
+      "title": "Palette manager: create palettes with named paints, pigment codes and transparency",
+      "status": "done"
+    },
+    {
+      "title": "Image workspace: open, crop, greyscale value levels, colour levels",
+      "status": "done"
+    },
+    {
+      "title": "Composition overlays: rule of thirds, Fibonacci spiral, grid",
+      "status": "done"
+    },
+    {
+      "title": "Mixing recipes for each colour of the picture and for any clicked spot",
+      "status": "done"
+    },
+    {
+      "title": "Build, take a screenshot, run the self-test and fix what fails",
+      "status": "done",
+      "why": "rebuild_check: build, screenshot, self-test passed; mechanics behaviour unverifiable"
+    }
+  ],
+  "hypotheses": [],
+  "findings": [],
+  "handoff": "State: first version built and passing rebuild_check (build, screenshot, self-test 10/10 steps). Rust + macroquad in app/; miniquad is vendored in app/vendor/miniquad with a patch (env MINIQUAD_NO_ACTIVATE) so --screenshot/--self-test do not steal focus on macOS. Modules: colour.rs (Lab), km.rs (two-constant Kubelka-Munk per RGB channel; watercolor = layer over paper with water dilution, acrylic/oil = R_inf with white), imgproc.rs (value levels, k-means colour levels, procedural sample landscape), grid.rs (thirds/Fibonacci/grid), ui.rs (own immediate-mode widgets, rect ids for the self-test), app.rs + app/painting_view.rs + app/palettes_view.rs, selftest.rs. Palettes autosave to config dir palettes.json (not in test/screenshot modes). Extra flag --palettes opens the Palettes screen. Open unknowns: Crimson pigment code (used PR206), accuracy of estimated pigment colours/KM constants. Ideas next: spectral KM for more accurate mixes, glazing (layering transparent paints), export recipe sheet, save/restore last picture.",
+  "updated": "2026-11-17T09:05:45Z"
+}

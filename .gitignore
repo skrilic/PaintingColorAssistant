@@ -1,0 +1,22 @@
+# Rust build output
+target/
+**/*.rs.bk
+
+# Craft Anything runtime state (session transcript, logs, usage, transient status)
+/agent-session.jsonl
+/build-activity.log
+/usage.json
+/inbox/
+/pinned/
+*.log
+investigation.cany/investigation/update.lock
+
+# macOS
+.DS_Store
+._*
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*~

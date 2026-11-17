@@ -1,0 +1,320 @@
+//! `--self-test`: drives the app with scripted mouse and keyboard input, the way a person would,
+//! and checks from the app's own state that each part of the core loop works.
+
+use crate::app::{App, Screen, View};
+use crate::grid::Overlay;
+use crate::km::Lighten;
+use crate::palette::{Medium, Transparency};
+use crate::ui::{Input, Ui};
+use macroquad::prelude::*;
+use std::collections::{HashSet, VecDeque};
+
+type CheckFn = Box<dyn FnMut(&App, &Ui, &mut Vec<StepResult>)>;
+type UntilFn = Box<dyn Fn(&App) -> bool>;
+
+enum Action {
+    Wait(u32),
+    WaitUntil(UntilFn, u32),
+    Click(&'static str),
+    ClickAt(&'static str, Vec2),
+    Drag(&'static str, Vec2, Vec2, u32),
+    SliderTo(&'static str, f32),
+    Type(&'static str),
+    Backspace(u32),
+    Check(CheckFn),
+}
+
+pub struct StepResult {
+    pub step: String,
+    pub passed: bool,
+    pub detail: String,
+}
+
+pub struct SelfTest {
+    queue: VecDeque<Action>,
+    mouse: Vec2,
+    /// Frames still to emit for the action being executed.
+    pending: VecDeque<Input>,
+    pub results: Vec<StepResult>,
+    pub frames: u32,
+}
+
+fn res(r: &mut Vec<StepResult>, step: &str, passed: bool, detail: String) {
+    r.push(StepResult { step: step.into(), passed, detail });
+}
+
+fn centre(ui: &Ui, id: &str) -> Option<Vec2> {
+    ui.rects.get(id).map(|r| r.center())
+}
+
+impl SelfTest {
+    pub fn new() -> Self {
+        use Action::*;
+        let mut q: VecDeque<Action> = VecDeque::new();
+        let start_dims = std::rc::Rc::new(std::cell::Cell::new((0u32, 0u32)));
+        q.push_back(Wait(6));
+
+        // Value study: greyscale with the chosen number of levels.
+        q.push_back(Click("view_values"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let greys: HashSet<u8> = app.display_rgba.chunks(4).map(|p| p[0]).collect();
+            let grey_only = app.display_rgba.chunks(4).all(|p| p[0] == p[1] && p[1] == p[2]);
+            let ok = app.view == View::Values && grey_only && greys.len() == app.value_levels as usize;
+            res(r, "values", ok, format!("value view shows {} grey levels (asked for {})", greys.len(), app.value_levels));
+        })));
+
+        // Move: drag a crop frame on the picture and apply it.
+        let d0 = start_dims.clone();
+        q.push_back(Check(Box::new(move |app, _ui, _r| {
+            if let Some(img) = &app.img {
+                d0.set(img.work.dimensions());
+            }
+        })));
+        q.push_back(Click("crop_start"));
+        q.push_back(Wait(2));
+        // The crop frame starts at 10%..90%; pull its bottom-right handle in to 70%.
+        q.push_back(Drag("canvas_image", vec2(0.9, 0.9), vec2(0.7, 0.7), 14));
+        q.push_back(Wait(1));
+        q.push_back(Click("crop_apply"));
+        q.push_back(Wait(3));
+        let d1 = start_dims.clone();
+        q.push_back(Check(Box::new(move |app, _ui, r| {
+            let (w0, h0) = d1.get();
+            let Some(img) = &app.img else {
+                res(r, "move", false, "no picture loaded".into());
+                return;
+            };
+            let (w1, h1) = img.work.dimensions();
+            let crop = img.crop.unwrap_or((0, 0, 0, 0));
+            let fx = crop.2 as f32 / img.original.width() as f32;
+            let fy = crop.3 as f32 / img.original.height() as f32;
+            let ok = img.crop.is_some() && (fx - 0.6).abs() < 0.05 && (fy - 0.6).abs() < 0.05 && !app.cropping;
+            res(
+                r,
+                "move",
+                ok,
+                format!("dragged a crop frame over the picture: {w0}x{h0} became {w1}x{h1} ({:.0}% x {:.0}% of the original)", fx * 100.0, fy * 100.0),
+            );
+        })));
+
+        // Act: colour levels and Kubelka-Munk recipes for each of them.
+        q.push_back(SliderTo("colour_levels", (10.0 - 2.0) / (24.0 - 2.0)));
+        q.push_back(Wait(2));
+        q.push_back(WaitUntil(Box::new(|app| app.recipes_done()), 900));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let n = app.colours.as_ref().map(|c| c.lab.len()).unwrap_or(0);
+            let des: Vec<f32> = app.recipes.iter().flatten().map(|rc| rc.de).collect();
+            let mean = des.iter().sum::<f32>() / des.len().max(1) as f32;
+            let ok = app.view == View::Colours && n == 10 && des.len() == n && mean < 15.0;
+            res(r, "act", ok, format!("{n} colour levels, {} Kubelka-Munk recipes from the palette, mean colour difference dE {:.1}", des.len(), mean));
+            // Physical sanity: in the starter watercolor palette blue + yellow mixes to a green.
+            if let Some(m) = &app.mixer {
+                let blue = app.current_palette().and_then(|p| p.paints.iter().position(|x| x.name == "Cobalt Blue"));
+                let yellow = app.current_palette().and_then(|p| p.paints.iter().position(|x| x.name == "Lemon Yellow"));
+                if let (Some(b), Some(y)) = (blue, yellow) {
+                    let mix = m.mix_srgb(&[(b, 1), (y, 1)], Lighten::None);
+                    let h = crate::colour::hue_deg(crate::colour::srgb8_to_lab(mix));
+                    res(r, "mixing", (100.0..200.0).contains(&h), format!("Cobalt Blue + Lemon Yellow mix to {:?}, hue {:.0} degrees (green)", mix, h));
+                }
+            }
+        })));
+
+        // Pick a spot on the original picture.
+        q.push_back(Click("view_original"));
+        q.push_back(Wait(2));
+        q.push_back(ClickAt("canvas_image", vec2(0.5, 0.45)));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let ok = app.picked.as_ref().is_some_and(|p| p.recipe.is_some());
+            let detail = match &app.picked {
+                Some(p) => format!(
+                    "clicked spot {:?} got a recipe: {}",
+                    p.srgb,
+                    p.recipe.as_ref().zip(app.mixer.as_ref()).map(|(rc, m)| m.describe_parts(rc)).unwrap_or_default()
+                ),
+                None => "no spot picked".into(),
+            };
+            res(r, "pick", ok, detail);
+        })));
+
+        // Overlays.
+        q.push_back(Click("overlay_fib"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let ok = app.overlay.kind == Overlay::Fibonacci && app.overlay_segments > 20;
+            res(r, "overlay_fibonacci", ok, format!("Fibonacci spiral drawn with {} line segments", app.overlay_segments));
+        })));
+        q.push_back(Click("overlay_grid"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let ok = app.overlay.kind == Overlay::Grid && app.overlay_segments >= 4;
+            res(r, "overlay_grid", ok, format!("grid drawn with {} lines", app.overlay_segments));
+        })));
+        q.push_back(Click("overlay_thirds"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, ui, r| {
+            let need = ["value_scale", "value_levels_label", "colour_levels_label", "palette", "picked", "recipes", "overlay"];
+            let missing: Vec<&str> = need.iter().copied().filter(|n| !ui.hud.contains(*n)).collect();
+            let ok = missing.is_empty() && app.overlay.kind == Overlay::Thirds;
+            let detail = if ok {
+                "value scale, level counts, palette, clicked-spot recipe, recipe list and rule-of-thirds overlay are drawn".into()
+            } else {
+                format!("missing on screen: {}", missing.join(", "))
+            };
+            res(r, "hud", ok, detail);
+        })));
+
+        // Palettes: create an acrylic palette and type in a paint.
+        let count = std::rc::Rc::new(std::cell::Cell::new(0usize));
+        q.push_back(Click("tab_palettes"));
+        q.push_back(Wait(2));
+        let c0 = count.clone();
+        q.push_back(Check(Box::new(move |app, _ui, _r| c0.set(app.store.palettes.len()))));
+        q.push_back(Click("new_palette_1"));
+        q.push_back(Wait(2));
+        q.push_back(Click("lib_row_0"));
+        q.push_back(Wait(2));
+        q.push_back(Click("add_paint"));
+        q.push_back(Wait(2));
+        q.push_back(Click("paint_name"));
+        q.push_back(Backspace(9));
+        q.push_back(Type("Crimson"));
+        q.push_back(Click("paint_code"));
+        q.push_back(Backspace(1));
+        q.push_back(Type("PR206"));
+        q.push_back(Click("paint_transparency_0"));
+        q.push_back(Wait(2));
+        let c1 = count.clone();
+        q.push_back(Check(Box::new(move |app, _ui, r| {
+            let new = app.store.palettes.last();
+            let ok = app.screen == Screen::Palettes
+                && app.store.palettes.len() == c1.get() + 1
+                && new.is_some_and(|p| {
+                    p.medium == Medium::Acrylic
+                        && p.paints.len() == 2
+                        && p.paints[1].name == "Crimson"
+                        && p.paints[1].pigment == "PR206"
+                        && p.paints[1].transparency == Transparency::Transparent
+                });
+            let detail = match new {
+                Some(p) => format!(
+                    "created \"{}\" ({}) with paints: {}",
+                    p.name,
+                    p.medium.label(),
+                    p.paints.iter().map(|x| format!("{} {} {}", x.name, x.pigment, x.transparency.label())).collect::<Vec<_>>().join("; ")
+                ),
+                None => "no palette".into(),
+            };
+            res(r, "palette", ok, detail);
+        })));
+
+        // Switch the painting to acrylic paints.
+        q.push_back(Click("tab_painting"));
+        q.push_back(Wait(2));
+        q.push_back(Click("medium_1"));
+        q.push_back(Wait(2));
+        q.push_back(WaitUntil(Box::new(|app| app.recipes_done()), 900));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let pal = app.current_palette();
+            let uses_white = app.recipes.iter().flatten().any(|rc| matches!(rc.lighten, Lighten::White(_)));
+            let ok = app.medium == Medium::Acrylic && pal.is_some_and(|p| p.medium == Medium::Acrylic) && app.recipes_done();
+            res(
+                r,
+                "medium",
+                ok,
+                format!(
+                    "switched to acrylic: palette \"{}\", recipes recomputed{}",
+                    pal.map(|p| p.name.as_str()).unwrap_or("-"),
+                    if uses_white { ", lighter colours use white paint" } else { "" }
+                ),
+            );
+        })));
+        SelfTest { queue: q, mouse: vec2(5.0, 5.0), pending: VecDeque::new(), results: Vec::new(), frames: 0 }
+    }
+
+    fn base(&self) -> Input {
+        Input { mouse: self.mouse, ..Default::default() }
+    }
+
+    /// Input for the next frame; `None` once the script is finished.
+    pub fn input(&mut self, app: &App, ui: &Ui) -> Option<Input> {
+        self.frames += 1;
+        loop {
+            if let Some(i) = self.pending.pop_front() {
+                self.mouse = i.mouse;
+                return Some(i);
+            }
+            let action = self.queue.pop_front()?;
+            match action {
+                Action::Wait(n) => {
+                    for _ in 0..n {
+                        self.pending.push_back(self.base());
+                    }
+                }
+                Action::WaitUntil(f, max) => {
+                    if !f(app) && max > 0 {
+                        self.queue.push_front(Action::WaitUntil(f, max - 1));
+                        return Some(self.base());
+                    }
+                }
+                Action::Click(id) => match centre(ui, id) {
+                    Some(p) => self.click(p),
+                    None => self.results.push(StepResult { step: format!("click {id}"), passed: false, detail: "control not on screen".into() }),
+                },
+                Action::ClickAt(id, n) => {
+                    if let Some(r) = ui.rects.get(id) {
+                        self.click(r.point() + r.size() * n);
+                    }
+                }
+                Action::SliderTo(id, t) => {
+                    if let Some(r) = ui.rects.get(id) {
+                        let p = vec2(r.x + 8.0 + (r.w - 16.0) * t, r.y + r.h / 2.0);
+                        self.click(p);
+                    }
+                }
+                Action::Drag(id, a, b, steps) => {
+                    if let Some(r) = ui.rects.get(id) {
+                        let pa = r.point() + r.size() * a;
+                        let pb = r.point() + r.size() * b;
+                        self.pending.push_back(Input { mouse: pa, ..Default::default() });
+                        self.pending.push_back(Input { mouse: pa, down: true, pressed: true, ..Default::default() });
+                        for k in 1..=steps {
+                            let p = pa.lerp(pb, k as f32 / steps as f32);
+                            self.pending.push_back(Input { mouse: p, down: true, ..Default::default() });
+                        }
+                        self.pending.push_back(Input { mouse: pb, ..Default::default() });
+                    }
+                }
+                Action::Type(s) => {
+                    self.pending.push_back(Input { mouse: self.mouse, chars: s.chars().collect(), ..Default::default() });
+                }
+                Action::Backspace(n) => {
+                    for _ in 0..n {
+                        self.pending.push_back(Input { mouse: self.mouse, backspace: true, ..Default::default() });
+                    }
+                }
+                Action::Check(mut f) => f(app, ui, &mut self.results),
+            }
+        }
+    }
+
+    fn click(&mut self, p: Vec2) {
+        self.pending.push_back(Input { mouse: p, ..Default::default() });
+        self.pending.push_back(Input { mouse: p, down: true, pressed: true, ..Default::default() });
+        self.pending.push_back(Input { mouse: p, ..Default::default() });
+    }
+
+    pub fn write(&self, path: &str) {
+        let steps: Vec<serde_json::Value> = self
+            .results
+            .iter()
+            .map(|s| serde_json::json!({"step": s.step, "passed": s.passed, "detail": s.detail}))
+            .collect();
+        let out = serde_json::json!({"version": 1, "steps": steps});
+        if let Some(dir) = std::path::Path::new(path).parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(path, serde_json::to_string_pretty(&out).unwrap());
+    }
+}

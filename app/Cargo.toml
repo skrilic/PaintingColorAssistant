@@ -1,0 +1,21 @@
+[package]
+name = "painting_color_assistant"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dirs = "7.0.0"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp", "bmp", "tiff"] }
+macroquad = "0.4"
+rfd = "0.18.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+
+[patch.crates-io]
+miniquad = { path = "vendor/miniquad" }
+
+[profile.dev]
+opt-level = 2
+
+[profile.dev.package."*"]
+opt-level = 3

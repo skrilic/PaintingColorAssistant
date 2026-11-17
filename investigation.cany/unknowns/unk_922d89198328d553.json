@@ -1,0 +1,14 @@
+{
+  "id": "unk_922d89198328d553",
+  "revision": 1,
+  "question": "Which pigment code did the artist mean for \"Crimson PG__\" (PG is a green pigment code; crimsons are usually PR)? I used PR206 for the Crimson example.",
+  "severity": "low",
+  "domain": "palettes",
+  "status": "open",
+  "probes": [
+    "Ask the artist which crimson tube they use",
+    "Artist edits the code in the Palettes screen"
+  ],
+  "evidence_for": [],
+  "evidence_against": []
+}

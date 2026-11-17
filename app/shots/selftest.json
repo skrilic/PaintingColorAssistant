@@ -1,0 +1,55 @@
+{
+  "steps": [
+    {
+      "detail": "value view shows 5 grey levels (asked for 5)",
+      "passed": true,
+      "step": "values"
+    },
+    {
+      "detail": "dragged a crop frame over the picture: 1200x800 became 720x480 (60% x 60% of the original)",
+      "passed": true,
+      "step": "move"
+    },
+    {
+      "detail": "10 colour levels, 10 Kubelka-Munk recipes from the palette, mean colour difference dE 3.0",
+      "passed": true,
+      "step": "act"
+    },
+    {
+      "detail": "Cobalt Blue + Lemon Yellow mix to [54, 128, 115], hue 180 degrees (green)",
+      "passed": true,
+      "step": "mixing"
+    },
+    {
+      "detail": "clicked spot [150, 149, 169] got a recipe: 4 Cobalt Blue + 3 Crimson + 3 Burnt Sienna",
+      "passed": true,
+      "step": "pick"
+    },
+    {
+      "detail": "Fibonacci spiral drawn with 336 line segments",
+      "passed": true,
+      "step": "overlay_fibonacci"
+    },
+    {
+      "detail": "grid drawn with 8 lines",
+      "passed": true,
+      "step": "overlay_grid"
+    },
+    {
+      "detail": "value scale, level counts, palette, clicked-spot recipe, recipe list and rule-of-thirds overlay are drawn",
+      "passed": true,
+      "step": "hud"
+    },
+    {
+      "detail": "created \"Acrylic 3\" (Acrylic) with paints: Hansa Yellow Light PY3 Transparent; Crimson PR206 Transparent",
+      "passed": true,
+      "step": "palette"
+    },
+    {
+      "detail": "switched to acrylic: palette \"Acrylic 1\", recipes recomputed, lighter colours use white paint",
+      "passed": true,
+      "step": "medium"
+    }
+  ],
+  "version": 1
+}
