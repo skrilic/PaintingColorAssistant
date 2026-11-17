@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Simplified artwork for 16 and 24 px: flat colours, no grid, edges on the 16 px grid. -->
+  <defs>
+    <clipPath id="drop">
+      <path id="drop-shape" d="M512,128 C455,230 256,470 256,704 A256,256 0 0 0 768,704 C768,470 569,230 512,128 Z"/>
+    </clipPath>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="230" fill="#1C1D22"/>
+  <g clip-path="url(#drop)">
+    <rect x="240" y="100" width="272" height="880" fill="#F0441F"/>
+    <rect x="512" y="100" width="272" height="348" fill="#59AAE8"/>
+    <rect x="512" y="448" width="272" height="256" fill="#2078CA"/>
+    <rect x="512" y="704" width="272" height="276" fill="#134689"/>
+  </g>
+  <use href="#drop-shape" fill="none" stroke="#B4AEA4" stroke-width="60"/>
+</svg>

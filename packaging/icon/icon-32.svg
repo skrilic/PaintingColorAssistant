@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Simplified artwork for 32 and 48 px: bigger drop, no brush or ring, edges on the 32 px grid. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="32" x2="0" y2="992" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2B2E36"/>
+      <stop offset="1" stop-color="#15161A"/>
+    </linearGradient>
+    <clipPath id="tile"><rect x="32" y="32" width="960" height="960" rx="220"/></clipPath>
+    <clipPath id="drop">
+      <path id="drop-shape" d="M512,96 C460,190 256,440 256,672 A256,256 0 0 0 768,672 C768,440 564,190 512,96 Z"/>
+    </clipPath>
+    <radialGradient id="warm" cx="430" cy="600" r="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFCB3D"/>
+      <stop offset="0.45" stop-color="#F7832B"/>
+      <stop offset="1" stop-color="#E1302A"/>
+    </radialGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="220" fill="url(#bg)"/>
+  <g clip-path="url(#tile)">
+    <g stroke="#B08A55" stroke-opacity="0.75" stroke-width="28">
+      <line x1="352" y1="32" x2="352" y2="992"/>
+      <line x1="672" y1="32" x2="672" y2="992"/>
+      <line x1="32" y1="352" x2="992" y2="352"/>
+      <line x1="32" y1="672" x2="992" y2="672"/>
+    </g>
+    <g clip-path="url(#drop)">
+      <rect x="240" y="80" width="272" height="864" fill="url(#warm)"/>
+      <rect x="512" y="80" width="272" height="272" fill="#F3BE4A"/>
+      <rect x="512" y="352" width="272" height="224" fill="#5AA9E6"/>
+      <rect x="512" y="576" width="272" height="192" fill="#2479CC"/>
+      <rect x="512" y="768" width="272" height="176" fill="#16478E"/>
+    </g>
+    <use href="#drop-shape" fill="none" stroke="#F3E7D3" stroke-opacity="0.6" stroke-width="20"/>
+  </g>
+</svg>

@@ -34,6 +34,13 @@ cargo run -- <image path>                     # open with a picture
   Tag must equal `app/Cargo.toml` version. Manual dispatch builds without publishing.
 - Packaging inputs live in `packaging/` (macOS `Info.plist` with `@VERSION@`, Linux
   `.desktop`, `release-notes.md` used as the release body).
+- App icon: edit SVGs in `packaging/icon/` (`icon.svg` ≥64 px, `icon-32.svg`, `icon-16.svg`
+  for small sizes), then run `python3 packaging/icon/make_icons.py` (Inkscape + Pillow) and
+  commit the generated `app/assets/*` and `packaging/icon/{AppIcon.icns,icon-256.png}`.
+  `main.rs` embeds the PNGs as the window icon (a unit test checks they decode);
+  `app/build.rs` embeds `assets/icon.ico` into the Windows .exe via `winresource`.
+- `Platform::linux_wm_class` ("painting-colour-assistant") must match `StartupWMClass`
+  in the `.desktop` file.
 - Linux builds need `libwayland-dev` + `pkg-config` (rfd links `libwayland-client`).
 - `main.rs` sets `windows_subsystem = "windows"` for release builds, so stdout/stderr
   are invisible there; don't rely on console output for Windows diagnostics.

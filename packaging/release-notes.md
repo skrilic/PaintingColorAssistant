@@ -10,7 +10,8 @@
 
 ## Installing
 
-**Linux** – unpack and run `./painting_color_assistant`. The *Open picture...* dialog uses
+**Linux** – unpack and run `./painting_color_assistant`, or run `./install.sh` to add it
+to your applications menu with its icon (`./install.sh --uninstall` removes it). The *Open picture...* dialog uses
 the XDG desktop portal (standard on GNOME and KDE). If no dialog appears, drag the picture
 onto the window or pass its path on the command line.
 

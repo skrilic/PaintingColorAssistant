@@ -76,8 +76,9 @@ jobs:
           stage="$RUNNER_TEMP/$name"
           mkdir -p "$stage"
           cp "target/release/$BIN" "$stage/"
-          cp ../packaging/linux/painting-colour-assistant.desktop "$stage/"
-          cp ../README.md "$stage/"
+          cp ../packaging/linux/painting-colour-assistant.desktop ../packaging/linux/install.sh "$stage/"
+          cp ../packaging/icon/icon-256.png "$stage/painting-colour-assistant.png"
+          cp ../README.md ../LICENSE-MIT ../LICENSE-APACHE "$stage/"
           tar -C "$RUNNER_TEMP" -czf "$DIST/$name.tar.gz" "$name"
 
       # ---------------------------------------------------------------- macOS
@@ -94,6 +95,7 @@ jobs:
             "target/aarch64-apple-darwin/release/$BIN" \
             "target/x86_64-apple-darwin/release/$BIN"
           sed "s/@VERSION@/$VERSION/g" ../packaging/macos/Info.plist > "$app/Contents/Info.plist"
+          cp ../LICENSE-MIT ../LICENSE-APACHE ../packaging/icon/AppIcon.icns "$app/Contents/Resources/"
           # Not notarised: ad-hoc signature only, so Apple Silicon will run it.
           codesign --force --deep --sign - "$app"
           ditto -c -k --keepParent "$app" "$DIST/$APP-$LABEL-macos-universal.zip"
@@ -107,7 +109,7 @@ jobs:
           stage="$RUNNER_TEMP/$name"
           mkdir -p "$stage"
           cp "target/release/$BIN.exe" "$stage/Painting Colour Assistant.exe"
-          cp ../README.md "$stage/"
+          cp ../README.md ../LICENSE-MIT ../LICENSE-APACHE "$stage/"
           (cd "$RUNNER_TEMP" && 7z a -tzip "$DIST/$name.zip" "$name")
 
       - uses: actions/upload-artifact@v4

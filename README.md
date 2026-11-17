@@ -1,3 +1,5 @@
+<img src="packaging/icon/icon-256.png" alt="" width="96" align="right">
+
 # Painting Colour Assistant
 
 A desktop tool for painters planning a painting from a reference picture. Open an image,
@@ -31,6 +33,9 @@ Palettes are saved automatically to
 Ready-made builds for Linux, macOS and Windows are on the
 [Releases](https://github.com/skrilic/PaintingColorAssistant/releases) page, with
 installation notes for each system.
+
+On Linux, run `./install.sh` in the unpacked folder to add the app to your applications
+menu (installs to `~/.local`; `./install.sh --uninstall` removes it).
 
 ## Building and running
 
@@ -88,6 +93,19 @@ packages without publishing them.
 
 The builds are not code-signed or notarised.
 
+### App icon
+
+The icon sources are SVGs in [packaging/icon](packaging/icon): `icon.svg` for 64 px and
+up, and simplified `icon-32.svg` / `icon-16.svg` for small sizes. After editing them,
+regenerate every format (needs Inkscape and Pillow) and commit the results:
+
+```sh
+python3 packaging/icon/make_icons.py
+```
+
+This writes `app/assets/` (window icon PNGs and the Windows `.ico`) and
+`packaging/icon/` (`AppIcon.icns` for macOS, `icon-256.png` for Linux).
+
 ## How the colour mixing works
 
 Mixing uses two-constant Kubelka-Munk theory per RGB channel in linear light. Each paint's
@@ -122,6 +140,8 @@ app/
     palette.rs        paints, palettes, pigment library, saving
     ui.rs             small immediate-mode UI toolkit
     selftest.rs       scripted end-to-end test
+  assets/             generated icon files embedded in the app
+  build.rs            embeds the icon in the Windows .exe
   vendor/miniquad/    patched copy of miniquad 0.4.11
   MECHANICS.md        all model and UI constants with their source
   shots/              reference screenshots and self-test output
@@ -146,4 +166,15 @@ app/
 
 ## Licence
 
-The vendored miniquad is under MIT or Apache-2.0 (see its licence files).
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT licence ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for
+inclusion in this project by you, as defined in the Apache-2.0 licence, shall be dual
+licensed as above, without any additional terms or conditions.
+
+The vendored miniquad in `app/vendor/miniquad` keeps its own MIT / Apache-2.0 licence files.

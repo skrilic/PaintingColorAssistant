@@ -15,6 +15,7 @@ mod ui;
 
 use app::{App, View};
 use grid::Overlay;
+use macroquad::miniquad::conf::{Icon, Platform};
 use macroquad::prelude::*;
 use std::path::PathBuf;
 use ui::{Input, Ui};
@@ -55,8 +56,26 @@ fn window_conf() -> Conf {
         window_height: 880,
         high_dpi: true,
         window_resizable: true,
+        icon: window_icon(),
+        platform: Platform {
+            // Matches StartupWMClass in the Linux .desktop file, so desktops show the app icon.
+            linux_wm_class: "painting-colour-assistant",
+            ..Default::default()
+        },
         ..Default::default()
     }
+}
+
+/// Title bar / taskbar icon, rendered from packaging/icon by make_icons.py.
+fn window_icon() -> Option<Icon> {
+    fn rgba<const N: usize>(png: &[u8]) -> Option<[u8; N]> {
+        image::load_from_memory(png).ok()?.to_rgba8().into_raw().try_into().ok()
+    }
+    Some(Icon {
+        small: rgba(include_bytes!("../assets/icon-16.png"))?,
+        medium: rgba(include_bytes!("../assets/icon-32.png"))?,
+        big: rgba(include_bytes!("../assets/icon-64.png"))?,
+    })
 }
 
 fn load_font() -> Option<Font> {
@@ -157,4 +176,12 @@ fn main() {
         unsafe { std::env::set_var("MINIQUAD_NO_ACTIVATE", "1") };
     }
     macroquad::Window::from_config(window_conf(), run(args));
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn window_icon_decodes() {
+        assert!(super::window_icon().is_some());
+    }
 }
