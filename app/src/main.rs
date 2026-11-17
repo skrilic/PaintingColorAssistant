@@ -1,6 +1,9 @@
 //! Painting Colour Assistant: value and colour studies of a picture, composition overlays,
 //! and Kubelka-Munk mixing recipes from the artist's own paint palettes.
 
+// Release builds on Windows open no console window next to the app.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 mod app;
 mod colour;
 mod grid;

@@ -27,6 +27,17 @@ cargo run -- <image path>                     # open with a picture
   they never read or write the user's `palettes.json`.
 - After UI changes, run both the self-test and a screenshot and look at the PNG.
 
+## Releases
+
+- `.github/workflows/release.yml` builds on tag `v*` (Linux on ubuntu-22.04, universal
+  macOS `.app` via `lipo`, Windows `.zip`) and publishes with `gh release create`.
+  Tag must equal `app/Cargo.toml` version. Manual dispatch builds without publishing.
+- Packaging inputs live in `packaging/` (macOS `Info.plist` with `@VERSION@`, Linux
+  `.desktop`, `release-notes.md` used as the release body).
+- Linux builds need `libwayland-dev` + `pkg-config` (rfd links `libwayland-client`).
+- `main.rs` sets `windows_subsystem = "windows"` for release builds, so stdout/stderr
+  are invisible there; don't rely on console output for Windows diagnostics.
+
 ## Architecture
 
 - `main.rs` – arg parsing, window config, main loop, screenshot capture. Sets

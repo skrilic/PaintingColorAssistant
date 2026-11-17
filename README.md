@@ -26,6 +26,12 @@ Palettes are saved automatically to
 `<config dir>/PaintingColorAssistant/palettes.json`
 (on Linux `~/.config/PaintingColorAssistant/palettes.json`).
 
+## Download
+
+Ready-made builds for Linux, macOS and Windows are on the
+[Releases](https://github.com/skrilic/PaintingColorAssistant/releases) page, with
+installation notes for each system.
+
 ## Building and running
 
 Requires a recent stable Rust toolchain (the crate uses edition 2024).
@@ -66,6 +72,21 @@ cargo run -- --self-test shots/selftest.json # end-to-end UI test
 
 The self-test always exits with status 0; check that every step in the JSON file has
 `"passed": true`.
+
+## Making a release
+
+Releases are built by [.github/workflows/release.yml](.github/workflows/release.yml):
+
+1. Set `version` in `app/Cargo.toml` (e.g. `0.2.0`), commit and push.
+2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
+
+The workflow builds a Linux `.tar.gz`, a universal macOS `.app` (zipped) and a Windows
+`.zip`, then publishes a GitHub release with checksums and the notes from
+[packaging/release-notes.md](packaging/release-notes.md). The tag must match the Cargo
+version or publishing stops. Running the workflow by hand from the Actions tab builds the
+packages without publishing them.
+
+The builds are not code-signed or notarised.
 
 ## How the colour mixing works
 

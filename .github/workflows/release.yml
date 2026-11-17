@@ -1,0 +1,155 @@
+name: Release
+
+# Push a tag like v0.1.0 to build all platforms and publish a GitHub release.
+# "Run workflow" on the Actions tab builds the same packages without publishing,
+# so they can be tried first (download them from the run's Artifacts).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  APP: painting-colour-assistant
+  BIN: painting_color_assistant
+
+defaults:
+  run:
+    shell: bash
+    working-directory: app
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Oldest supported Ubuntu runner: the binary then needs only glibc 2.35+.
+          - name: linux-x86_64
+            os: ubuntu-22.04
+          - name: macos-universal
+            os: macos-14
+          - name: windows-x86_64
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-14' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app
+          key: ${{ matrix.name }}
+
+      - name: Package version
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            label="$GITHUB_REF_NAME"
+          else
+            label="v${version}-dev.${GITHUB_SHA::7}"
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "LABEL=$label" >> "$GITHUB_ENV"
+          echo "DIST=$GITHUB_WORKSPACE/dist" >> "$GITHUB_ENV"
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+
+      # ---------------------------------------------------------------- Linux
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev
+
+      - name: Test
+        if: runner.os == 'Linux'
+        run: cargo test --locked
+
+      - name: Build and package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cargo build --release --locked
+          name="$APP-$LABEL-linux-x86_64"
+          stage="$RUNNER_TEMP/$name"
+          mkdir -p "$stage"
+          cp "target/release/$BIN" "$stage/"
+          cp ../packaging/linux/painting-colour-assistant.desktop "$stage/"
+          cp ../README.md "$stage/"
+          tar -C "$RUNNER_TEMP" -czf "$DIST/$name.tar.gz" "$name"
+
+      # ---------------------------------------------------------------- macOS
+      - name: Build and package (macOS)
+        if: runner.os == 'macOS'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          cargo build --release --locked --target aarch64-apple-darwin
+          cargo build --release --locked --target x86_64-apple-darwin
+          app="$RUNNER_TEMP/Painting Colour Assistant.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          lipo -create -output "$app/Contents/MacOS/$BIN" \
+            "target/aarch64-apple-darwin/release/$BIN" \
+            "target/x86_64-apple-darwin/release/$BIN"
+          sed "s/@VERSION@/$VERSION/g" ../packaging/macos/Info.plist > "$app/Contents/Info.plist"
+          # Not notarised: ad-hoc signature only, so Apple Silicon will run it.
+          codesign --force --deep --sign - "$app"
+          ditto -c -k --keepParent "$app" "$DIST/$APP-$LABEL-macos-universal.zip"
+
+      # -------------------------------------------------------------- Windows
+      - name: Build and package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo build --release --locked
+          name="$APP-$LABEL-windows-x86_64"
+          stage="$RUNNER_TEMP/$name"
+          mkdir -p "$stage"
+          cp "target/release/$BIN.exe" "$stage/Painting Colour Assistant.exe"
+          cp ../README.md "$stage/"
+          (cd "$RUNNER_TEMP" && 7z a -tzip "$DIST/$name.zip" "$name")
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag matches Cargo.toml version
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' app/Cargo.toml | head -1)
+          if [[ "v$version" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match Cargo.toml version $version"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Painting Colour Assistant $GITHUB_REF_NAME" \
+            --notes-file packaging/release-notes.md \
+            --generate-notes
