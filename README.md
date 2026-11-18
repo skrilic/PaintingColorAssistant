@@ -25,6 +25,10 @@ Kubelka-Munk mixing recipes for every colour, made from the paints in your own p
 - **Mixing recipes** – every colour level gets a recipe such as
   *"4 Cobalt Blue + 2 Crimson + 1 Yellow Deep, water: like coffee"* with a match rating.
   Click anywhere on the picture to get a recipe for that spot.
+- **Export PDF** – the *Export PDF...* button saves a reference brochure (A4) with the
+  original picture, the value study with its percentages, the contour drawing, the chosen
+  palette with its mixing chart, and a recipe for every colour level using the chosen
+  number of paints per mix. You pick the file name and folder.
 
 Palettes are saved automatically to
 `<config dir>/PaintingColorAssistant/palettes.json`

@@ -326,6 +326,7 @@ impl Mixer {
                     "no white".into()
                 }
             }
+            Lighten::Water(load) if load >= 0.9 => "water: full strength, very little water".into(),
             Lighten::Water(load) => format!("water: {} ({:.0}% strength)", water_label(load), load * 100.0),
             Lighten::White(n) => format!("+ {} part{} {}", n, if n == 1 { "" } else { "s" }, self.white_name),
         }

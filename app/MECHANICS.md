@@ -95,3 +95,18 @@ its masstone colour (full strength), its transparency and its tinting strength.
 |---|---|---|
 | Window | 1400 x 880, resizable | estimated |
 | Left panel / right panel | 250 px / 430 px | estimated |
+
+## Export PDF (reference brochure)
+
+| What | Value | Source |
+|---|---|---|
+| Button | "Export PDF..." at the right of the top bar; asks for the file name and folder (system save dialog), adds ".pdf" if missing | request |
+| Default file name | "<picture name> - reference.pdf" | estimated |
+| Page size | A4 portrait (595 x 842 pt), 42 pt margins, footer with picture name, date and page number | estimated |
+| Page 1 | original picture (cropped if a crop is applied) and the settings | request |
+| Page 2 | value levels picture with the value scale and percentages, contour drawing at the same size | request |
+| Page 3 | chosen palette: paints, pigment codes, transparency, tinting strength, 1:1 mixing chart and lightening steps | request |
+| Page 4+ | colour levels picture and a recipe for every level, with the chosen paints per mix (1, 2 or 3), plus the clicked spot | request |
+| Pictures | JPEG quality 90 at the working-copy size (up to 1400 px) | estimated |
+| Text | Helvetica (built into PDF readers); letters outside its set lose their accent | estimated |
+

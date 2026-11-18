@@ -64,6 +64,9 @@ cargo run -- <image path>                     # open with a picture
 - `colour.rs` – sRGB/linear/Lab, CIE76 ΔE. `palette.rs` – `Paint`, `Palette`, `Store`,
   45-pigment `LIBRARY`, JSON persistence in `dirs::config_dir()`.
 - `grid.rs` – rule of thirds, Fibonacci spiral, square grid overlays.
+- `pdf.rs` – minimal PDF writer (JPEG images, shapes, Helvetica text with built-in widths).
+  `app/export.rs` lays out the reference brochure; "Export PDF" uses the rfd save dialog,
+  or `App::export_path_override` (set to a temp file by the self-test).
 
 ## Conventions
 

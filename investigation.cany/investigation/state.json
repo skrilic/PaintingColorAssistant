@@ -1,5 +1,5 @@
 {
-  "revision": 6,
+  "revision": 7,
   "brief": {
     "question": "Build a desktop painting colour assistant: open an image, crop it, view a greyscale value study with N levels, a colour-reduced version with N levels, overlay a composition grid (rule of thirds, Fibonacci spiral, square grid), and for each reduced colour compute a Kubelka-Munk mixing recipe from a user-defined pigment palette (watercolor / acrylic / oil, with transparency per paint).",
     "purpose": "Tool for an artist planning a painting; no original program to match, built from the request alone.",
@@ -41,6 +41,6 @@
   ],
   "hypotheses": [],
   "findings": [],
-  "handoff": "Previous turns: first build; then contours (View::Contours, \"Lines on top\", contour detail slider). This turn: explained value-box percentages (share of picture area per value level). Added caption beside the value boxes (\"1 = darkest value\", \"% = share of the picture's area\"; hud id value_scale_caption, shown when there is room), hover pop-up per box (ids value_box_i), self-test step value_shares (sum = 100%), MECHANICS.md row. All 13 self-test steps pass; rebuild_check passes (mechanics behaviour unverifiable). Not committed. Open unknowns unchanged.",
-  "updated": "2026-11-17T22:37:08Z"
+  "handoff": "Turns so far: first build; contours view + \"Lines on top\"; value-box percentage caption/tooltip; now Export PDF. New: src/pdf.rs (hand-written PDF writer: JPEG DCTDecode images, rects/circles/lines, Helvetica/Helvetica-Bold with AFM widths, WinAnsi text), src/app/export.rs (A4 brochure: cover with original + settings; value study + scale + contours same size; palette table + 1:1 mixing chart + lightening steps; colour-levels picture + recipe per level with chosen paints-per-mix + clicked spot). Top-bar button id export_pdf uses rfd save dialog (name + folder, .pdf appended), App::export_path_override for self-test (temp dir). Self-test step export_pdf (14/14 pass). Rendered pages checked via swift PDFKit script (/tmp/pdfpages/render.swift; poppler not installed). km describe_lighten: load>=0.9 -> \"water: full strength, very little water\". Docs updated: MECHANICS.md, mechanics.json, README.md, CLAUDE.md (architecture line). Not committed. The save dialog itself wasn't exercised by hand.",
+  "updated": "2026-11-18T08:55:17Z"
 }

@@ -56,6 +56,11 @@
       "step": "contours_on_top"
     },
     {
+      "detail": "Export PDF wrote a 207 KB brochure with 5 pages and 4 pictures (original, values, contours, colour levels)",
+      "passed": true,
+      "step": "export_pdf"
+    },
+    {
       "detail": "created \"Acrylic 3\" (Acrylic) with paints: Hansa Yellow Light PY3 Transparent; Crimson PR206 Transparent",
       "passed": true,
       "step": "palette"

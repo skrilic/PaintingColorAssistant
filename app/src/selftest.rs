@@ -195,6 +195,32 @@ impl SelfTest {
             res(r, "contours_on_top", ok, format!("contour lines drawn over the original picture ({changed} pixels)"));
         })));
 
+        // Export the reference brochure (saved to a temporary file in test mode).
+        q.push_back(Check(Box::new(|app, _ui, _r| {
+            if let Some(p) = &app.export_path_override {
+                let _ = std::fs::remove_file(p);
+            }
+        })));
+        q.push_back(Click("export_pdf"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let Some(path) = &app.export_path_override else {
+                res(r, "export_pdf", false, "no export path".into());
+                return;
+            };
+            let bytes = std::fs::read(path).unwrap_or_default();
+            let text = String::from_utf8_lossy(&bytes);
+            let pages = text.matches("/Type /Page ").count();
+            let images = text.matches("/Subtype /Image").count();
+            let ok = bytes.starts_with(b"%PDF-") && text.trim_end().ends_with("%%EOF") && pages >= 4 && images == 4;
+            res(
+                r,
+                "export_pdf",
+                ok,
+                format!("Export PDF wrote a {} KB brochure with {pages} pages and {images} pictures (original, values, contours, colour levels)", bytes.len() / 1024),
+            );
+        })));
+
         // Palettes: create an acrylic palette and type in a paint.
         let count = std::rc::Rc::new(std::cell::Cell::new(0usize));
         q.push_back(Click("tab_palettes"));

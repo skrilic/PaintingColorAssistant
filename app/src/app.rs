@@ -1,5 +1,6 @@
 //! The two screens: Palettes (build paint palettes) and Painting (study the picture, get recipes).
 
+mod export;
 mod painting_view;
 mod palettes_view;
 
@@ -141,6 +142,9 @@ pub struct App {
 
     status: String,
     status_until: f64,
+    /// Where "Export PDF" saves without asking (used by the self-test).
+    pub export_path_override: Option<std::path::PathBuf>,
+    last_export_dir: Option<std::path::PathBuf>,
     pub canvas_rect: Rect,
 }
 
@@ -198,6 +202,8 @@ impl App {
             status: String::new(),
             status_until: 0.0,
             canvas_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
+            export_path_override: None,
+            last_export_dir: None,
         };
         app.select_medium(Medium::Watercolor);
         app.edit_palette = if app.store.palettes.is_empty() { None } else { Some(0) };
@@ -479,9 +485,13 @@ impl App {
         if ui.button_ex("tab_painting", Rect::new(tabs.x + 131.0, tabs.y, 125.0, tabs.h), "2  Painting", self.screen == Screen::Painting) {
             self.screen = Screen::Painting;
         }
+        let export = Rect::new(w - 150.0, 10.0, 134.0, 32.0);
+        if ui.button("export_pdf", export, "Export PDF...") {
+            self.export_pdf();
+        }
         if get_time() < self.status_until {
             let sw = ui.measure(&self.status, 15.0);
-            ui.text(&self.status, (w - sw - 20.0).max(tabs.x + 280.0), 32.0, 15.0, ui::ACCENT);
+            ui.text(&self.status, (export.x - sw - 16.0).max(tabs.x + 280.0), 32.0, 15.0, ui::ACCENT);
         }
     }
 }

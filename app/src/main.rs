@@ -10,6 +10,7 @@ mod grid;
 mod imgproc;
 mod km;
 mod palette;
+mod pdf;
 mod selftest;
 mod ui;
 
@@ -130,6 +131,10 @@ async fn run(args: Args) {
         app.select_paint(Some(0));
     }
     let mut test = args.self_test.as_ref().map(|_| selftest::SelfTest::new());
+    if test.is_some() {
+        // The self-test presses "Export PDF"; save to a temporary file instead of asking.
+        app.export_path_override = Some(std::env::temp_dir().join("painting-colour-assistant-selftest.pdf"));
+    }
     let mut frames = 0u32;
     loop {
         let input = if let Some(t) = &mut test {

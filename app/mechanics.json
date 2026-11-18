@@ -398,6 +398,37 @@
       "value": 880,
       "unit": "px",
       "estimated": true
+    },
+    {
+      "name": "export pdf",
+      "group": "export",
+      "value": "button in top bar, save dialog for name and folder",
+      "source": "request"
+    },
+    {
+      "name": "export page size",
+      "group": "export",
+      "value": "A4 portrait",
+      "estimated": true
+    },
+    {
+      "name": "export margin",
+      "group": "export",
+      "value": 42,
+      "unit": "pt",
+      "estimated": true
+    },
+    {
+      "name": "export contents",
+      "group": "export",
+      "value": "original, value levels, contours, palette, colour mixes",
+      "source": "request"
+    },
+    {
+      "name": "export jpeg quality",
+      "group": "export",
+      "value": 90,
+      "estimated": true
     }
   ]
 }
