@@ -1,4 +1,4 @@
-//! Small immediate-mode UI on top of macroquad: buttons, sliders, text fields, dropdowns.
+//! Small immediate-mode UI on top of macroquad: buttons, sliders, text fields, dropdowns, tooltips.
 //! Every widget records its rectangle by id so the self-test can click it like a person.
 
 use macroquad::prelude::*;
@@ -58,6 +58,12 @@ pub struct Popup {
     pub items: Vec<String>,
 }
 
+/// Help box shown while the mouse is over `anchor`; drawn on top of everything in `end()`.
+struct Tooltip {
+    anchor: Rect,
+    lines: Vec<(String, Color)>,
+}
+
 pub struct Ui {
     pub input: Input,
     pub font: Option<Font>,
@@ -70,6 +76,7 @@ pub struct Ui {
     pub prev_hud: HashSet<String>,
     popup: Option<Popup>,
     popup_result: Option<(String, usize)>,
+    tooltip: Option<Tooltip>,
     swallow: bool,
     block: Option<Rect>,
     pub time: f32,
@@ -88,6 +95,7 @@ impl Ui {
             prev_hud: HashSet::new(),
             popup: None,
             popup_result: None,
+            tooltip: None,
             swallow: false,
             block: None,
             time: 0.0,
@@ -99,6 +107,7 @@ impl Ui {
         self.time += dt;
         self.prev_rects = std::mem::take(&mut self.rects);
         self.prev_hud = std::mem::take(&mut self.hud);
+        self.tooltip = None;
         self.block = self.popup.as_ref().map(|p| popup_rect(p));
         // While a popup is open, a press goes to the popup only.
         self.swallow = self.popup.is_some() && self.input.pressed;
@@ -132,6 +141,49 @@ impl Ui {
                 self.popup = None;
             }
         }
+        if let Some(t) = &self.tooltip {
+            self.draw_tooltip(t);
+        }
+    }
+
+    fn draw_tooltip(&self, t: &Tooltip) {
+        const SIZE: f32 = 14.0;
+        const LINE: f32 = 19.0;
+        const PAD: f32 = 10.0;
+        const GAP: f32 = 14.0;
+        let rows: Vec<Vec<&str>> = t.lines.iter().map(|(s, _)| s.split('\t').collect()).collect();
+        // Columns line up across all lines that have tabs.
+        let mut col_w: Vec<f32> = Vec::new();
+        for row in rows.iter().filter(|r| r.len() > 1) {
+            col_w.resize(col_w.len().max(row.len()), 0.0);
+            for (k, cell) in row.iter().enumerate() {
+                col_w[k] = col_w[k].max(self.measure(cell, SIZE));
+            }
+        }
+        let table_w = col_w.iter().sum::<f32>() + GAP * col_w.len().saturating_sub(1) as f32;
+        let line_h = |row: &[&str]| if row.iter().all(|c| c.is_empty()) { LINE / 2.0 } else { LINE };
+        let content_w = rows.iter().map(|r| if r.len() > 1 { table_w } else { self.measure(r[0], SIZE) }).fold(0.0, f32::max);
+        let w = content_w + 2.0 * PAD;
+        let h = rows.iter().map(|r| line_h(r)).sum::<f32>() - LINE + SIZE + 2.0 * PAD;
+        let (sw, sh) = (screen_width(), screen_height());
+        let x = (t.anchor.x + t.anchor.w - w).clamp(4.0, (sw - w - 4.0).max(4.0));
+        let mut y = t.anchor.y - h - 6.0;
+        if y < 4.0 {
+            y = (t.anchor.y + t.anchor.h + 6.0).min((sh - h - 4.0).max(4.0));
+        }
+        let r = Rect::new(x, y, w, h);
+        draw_rectangle(r.x + 3.0, r.y + 4.0, r.w, r.h, Color::new(0.0, 0.0, 0.0, 0.35));
+        rrect(r, 5.0, BG);
+        rrect_lines(r, 5.0, BORDER);
+        let mut ty = r.y + PAD + 11.0;
+        for (row, (_, colour)) in rows.iter().zip(&t.lines) {
+            let mut tx = r.x + PAD;
+            for (k, cell) in row.iter().enumerate() {
+                self.text(cell, tx, ty, SIZE, *colour);
+                tx += col_w.get(k).copied().unwrap_or(0.0) + GAP;
+            }
+            ty += line_h(row);
+        }
     }
 
     pub fn mark(&mut self, id: &str, r: Rect) {
@@ -140,6 +192,22 @@ impl Ui {
 
     pub fn hud(&mut self, name: &str) {
         self.hud.insert(name.to_string());
+    }
+
+    /// Hover help for `anchor`: while the mouse is over it, `lines()` (text, colour) are shown
+    /// in a box above it. A tab inside a line starts a new column. The box is drawn last, on top.
+    /// Registers `anchor` under `id`, and `id` as on-screen information while the box is shown.
+    pub fn tooltip(&mut self, id: &str, anchor: Rect, lines: impl FnOnce() -> Vec<(String, Color)>) {
+        self.mark(id, anchor);
+        if self.hovered(anchor) && self.active.is_none() {
+            self.tooltip = Some(Tooltip { anchor, lines: lines() });
+            self.hud(id);
+        }
+    }
+
+    /// Text of the tooltip shown this frame, lines joined by newlines (read by the self-test).
+    pub fn tooltip_text(&self) -> Option<String> {
+        self.tooltip.as_ref().map(|t| t.lines.iter().map(|(s, _)| s.as_str()).collect::<Vec<_>>().join("\n"))
     }
 
     /// Mouse is over `r` and not covered by a popup.

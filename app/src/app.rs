@@ -7,7 +7,7 @@ mod palettes_view;
 use crate::colour::{srgb8_to_lab, to_hex};
 use crate::grid::{Overlay, OverlaySettings};
 use crate::imgproc::{self, Analysis, ColourLevels, ValueLevels};
-use crate::km::{Mixer, Recipe, match_label};
+use crate::km::{MATCH_CLOSE, MATCH_EXCELLENT, MATCH_GOOD, Mixer, Recipe, match_label};
 use crate::palette::{self, Medium, Palette, Store, Transparency};
 use crate::ui::{self, BAD, BG, BORDER, GOOD, MUTED, PANEL, TEXT, Ui, WARN, col};
 use image::RgbImage;
@@ -515,17 +515,51 @@ fn transparency_mark(cx: f32, cy: f32, t: Transparency) {
     }
 }
 
-fn recipe_text(ui: &Ui, m: &Mixer, rc: &Recipe, x: f32, y: f32, w: f32) {
-    ui.text_fit(&m.describe_parts(rc), x, y, 15.0, TEXT, w);
-    let mc = if rc.de < 5.0 {
+fn match_colour(de: f32) -> Color {
+    if de < MATCH_GOOD {
         GOOD
-    } else if rc.de < 10.0 {
+    } else if de < MATCH_CLOSE {
         WARN
     } else {
         BAD
-    };
+    }
+}
+
+/// Hover help for the match word and its dE number; the band of this recipe is highlighted.
+fn match_tip(de: f32) -> Vec<(String, Color)> {
+    let here = match_label(de);
+    let mut lines = vec![
+        (format!("Colour match: {here}  (dE {de:.1})"), TEXT),
+        ("dE (delta E) is how far the mixed colour is from the picture's".into(), MUTED),
+        ("colour (the two swatches), measured in Lab colour space (CIE76).".into(), MUTED),
+        ("0 means the same colour; about 2.3 is the smallest difference".into(), MUTED),
+        ("most people can see side by side. Smaller is better.".into(), MUTED),
+        (String::new(), MUTED),
+    ];
+    let bands = [
+        ("excellent", format!("below {MATCH_EXCELLENT}"), "hard to tell apart", GOOD),
+        ("good", format!("{MATCH_EXCELLENT} to {MATCH_GOOD}"), "small difference, seen side by side", GOOD),
+        ("close", format!("{MATCH_GOOD} to {MATCH_CLOSE}"), "clearly different; adjust the mix by eye", WARN),
+        ("rough", format!("{MATCH_CLOSE} or more"), "your paints cannot reach this colour well", BAD),
+    ];
+    for (word, range, meaning, band_colour) in bands {
+        let colour = if word == here { band_colour } else { MUTED };
+        lines.push((format!("{word}\t{range}\t{meaning}"), colour));
+    }
+    lines.push((String::new(), MUTED));
+    lines.push(("The mixed colour comes from a paint-mixing model (Kubelka-Munk);".into(), MUTED));
+    lines.push(("real paints, paper and brushwork can shift it a little.".into(), MUTED));
+    lines
+}
+
+/// Recipe in two lines: paints and parts, then how much to lighten and how well it matches.
+/// `id` names the match label, which explains itself on hover.
+fn recipe_text(ui: &mut Ui, id: &str, m: &Mixer, rc: &Recipe, x: f32, y: f32, w: f32) {
+    ui.text_fit(&m.describe_parts(rc), x, y, 15.0, TEXT, w);
     let ml = format!("{}  (dE {:.1})", match_label(rc.de), rc.de);
     let mw = ui.measure(&ml, 12.0);
     ui.text_fit(&m.describe_lighten(rc), x, y + 17.0, 13.0, MUTED, w - mw - 10.0);
-    ui.text(&ml, x + w - mw, y + 17.0, 12.0, mc);
+    ui.text(&ml, x + w - mw, y + 17.0, 12.0, match_colour(rc.de));
+    let de = rc.de;
+    ui.tooltip(id, Rect::new(x + w - mw - 3.0, y + 4.0, mw + 6.0, 17.0), || match_tip(de));
 }

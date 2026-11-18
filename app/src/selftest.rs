@@ -17,6 +17,8 @@ enum Action {
     WaitUntil(UntilFn, u32),
     Click(&'static str),
     ClickAt(&'static str, Vec2),
+    /// Move the mouse over a control without pressing.
+    Hover(&'static str),
     Drag(&'static str, Vec2, Vec2, u32),
     SliderTo(&'static str, f32),
     Type(&'static str),
@@ -138,6 +140,18 @@ impl SelfTest {
                 None => "no spot picked".into(),
             };
             res(r, "pick", ok, detail);
+        })));
+        // Hovering the match label ("good (dE 4.2)") explains what the words and dE mean.
+        q.push_back(Hover("picked_match"));
+        q.push_back(Wait(1));
+        q.push_back(Check(Box::new(|app, ui, r| {
+            let tip = ui.tooltip_text().unwrap_or_default();
+            let label = app.picked.as_ref().and_then(|p| p.recipe.as_ref()).map(|rc| crate::km::match_label(rc.de)).unwrap_or("-");
+            let ok = ui.hud.contains("picked_match")
+                && tip.contains(&format!("Colour match: {label}"))
+                && ["excellent", "good", "close", "rough", "delta E"].iter().all(|w| tip.contains(w));
+            let first = tip.lines().next().unwrap_or("no tooltip");
+            res(r, "match_tooltip", ok, format!("hovering the clicked spot's match label shows the dE explanation: \"{first}\""));
         })));
 
         // Overlays.
@@ -317,6 +331,10 @@ impl SelfTest {
                 Action::Click(id) => match centre(ui, id) {
                     Some(p) => self.click(p),
                     None => self.results.push(StepResult { step: format!("click {id}"), passed: false, detail: "control not on screen".into() }),
+                },
+                Action::Hover(id) => match centre(ui, id) {
+                    Some(p) => self.pending.push_back(Input { mouse: p, ..Default::default() }),
+                    None => self.results.push(StepResult { step: format!("hover {id}"), passed: false, detail: "control not on screen".into() }),
                 },
                 Action::ClickAt(id, n) => {
                     if let Some(r) = ui.rects.get(id) {

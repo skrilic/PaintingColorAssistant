@@ -2,7 +2,7 @@
 //! the chosen palette and the colour mixes.
 
 use super::*;
-use crate::km::{Lighten, Mixer};
+use crate::km::{Lighten, MATCH_CLOSE, MATCH_GOOD, Mixer};
 use crate::pdf::{A4_H, A4_W, Doc, fit, wrap};
 use std::path::{Path, PathBuf};
 
@@ -121,9 +121,9 @@ fn paint_dot(doc: &mut Doc, cx: f32, cy: f32, r: f32, c: [u8; 3], t: Transparenc
 }
 
 fn match_colour(de: f32) -> [u8; 3] {
-    if de < 5.0 {
+    if de < MATCH_GOOD {
         GOOD
-    } else if de < 10.0 {
+    } else if de < MATCH_CLOSE {
         WARN
     } else {
         BAD

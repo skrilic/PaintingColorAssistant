@@ -291,6 +291,12 @@
       "estimated": true
     },
     {
+      "name": "match explanation",
+      "group": "mixing",
+      "value": "pop-up on hover over the match label: meaning of dE, the four bands, this recipe's band highlighted",
+      "source": "request"
+    },
+    {
       "name": "tinting strength min",
       "group": "mixing",
       "value": 0.2,

@@ -513,7 +513,7 @@ impl App {
             swatch(Rect::new(x, y, 44.0, 44.0), p.srgb);
             if let (Some(rc), Some(m)) = (&p.recipe, &self.mixer) {
                 swatch(Rect::new(x + 48.0, y, 44.0, 44.0), rc.srgb);
-                recipe_text(ui, m, rc, x + 104.0, y + 16.0, bw - 104.0);
+                recipe_text(ui, "picked_match", m, rc, x + 104.0, y + 16.0, bw - 104.0);
             } else {
                 ui.text("No paints to mix with", x + 56.0, y + 26.0, 14.0, MUTED);
             }
@@ -582,7 +582,7 @@ impl App {
                     let tx = sx + 62.0;
                     let info = format!("{}.   {:.0}% of the picture   value {}/{}", i + 1, c.share[i] * 100.0, value_no, nvals);
                     ui.text(&info, tx, rr.y + 17.0, 12.0, MUTED);
-                    recipe_text(ui, m, rc, tx, rr.y + 36.0, rr.w - (tx - rr.x) - 8.0);
+                    recipe_text(ui, &format!("recipe_match_{i}"), m, rc, tx, rr.y + 36.0, rr.w - (tx - rr.x) - 8.0);
                 }
                 None => ui.text("mixing...", sx + 62.0, rr.y + 34.0, 14.0, MUTED),
             }

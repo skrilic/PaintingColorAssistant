@@ -26,6 +26,10 @@ pub const PAIR_MAX: u32 = 6;
 pub const TRIPLE_MAX: u32 = 4;
 /// Score penalty (in delta E) per extra paint, so simpler mixes win ties.
 pub const EXTRA_PAINT_PENALTY: f32 = 0.8;
+/// Match words: a recipe below this delta E is "excellent", then "good", then "close"; above is "rough".
+pub const MATCH_EXCELLENT: f32 = 2.5;
+pub const MATCH_GOOD: f32 = 5.0;
+pub const MATCH_CLOSE: f32 = 10.0;
 
 pub fn scatter_for(t: Transparency) -> f32 {
     match t {
@@ -352,11 +356,11 @@ pub fn water_label(load: f32) -> &'static str {
 }
 
 pub fn match_label(de: f32) -> &'static str {
-    if de < 2.5 {
+    if de < MATCH_EXCELLENT {
         "excellent"
-    } else if de < 5.0 {
+    } else if de < MATCH_GOOD {
         "good"
-    } else if de < 10.0 {
+    } else if de < MATCH_CLOSE {
         "close"
     } else {
         "rough"

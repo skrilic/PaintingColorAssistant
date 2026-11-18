@@ -66,6 +66,7 @@ its masstone colour (full strength), its transparency and its tinting strength.
 | Simplicity bonus | +0.8 dE per extra paint when ranking | estimated |
 | Colour difference | CIE76 dE in Lab | estimated |
 | Match words | <2.5 excellent, <5 good, <10 close, else rough | estimated |
+| Match explanation | hovering the match label (e.g. "good  (dE 4.2)") shows a pop-up: what dE means, the four bands with this recipe's band highlighted, and that the mix is a model estimate | request |
 | Recipe search budget | 12 ms per frame (rest continues next frame) | estimated |
 
 ## Palettes
