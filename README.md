@@ -16,7 +16,9 @@ Kubelka-Munk mixing recipes for every colour, made from the paints in your own p
   or enter your own. Each palette shows a chart of every pair of its paints mixed.
 - **Media** – watercolor, acrylic or oil. Watercolor lightens with water over paper;
   acrylic and oil lighten with white paint.
-- **Picture views** – original, greyscale, value levels (2–10) and colour levels (2–24).
+- **Picture views** – original, greyscale, value levels (2–10), colour levels (2–24) and
+  contours: a line drawing of the picture's edges with adjustable detail, which can also
+  be drawn on top of any other view.
 - **Crop** – free or fixed aspect ratios (1:1, 4:5, 3:4, 2:3, 5:4, 4:3, 3:2, 16:9), with undo.
 - **Composition overlays** – rule of thirds, Fibonacci spiral (mirrorable) or a square grid
   with optional diagonals and cell labels.

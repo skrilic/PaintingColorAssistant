@@ -1,5 +1,5 @@
 {
-  "revision": 4,
+  "revision": 6,
   "brief": {
     "question": "Build a desktop painting colour assistant: open an image, crop it, view a greyscale value study with N levels, a colour-reduced version with N levels, overlay a composition grid (rule of thirds, Fibonacci spiral, square grid), and for each reduced colour compute a Kubelka-Munk mixing recipe from a user-defined pigment palette (watercolor / acrylic / oil, with transparency per paint).",
     "purpose": "Tool for an artist planning a painting; no original program to match, built from the request alone.",
@@ -41,6 +41,6 @@
   ],
   "hypotheses": [],
   "findings": [],
-  "handoff": "State: first version built and passing rebuild_check (build, screenshot, self-test 10/10 steps). Rust + macroquad in app/; miniquad is vendored in app/vendor/miniquad with a patch (env MINIQUAD_NO_ACTIVATE) so --screenshot/--self-test do not steal focus on macOS. Modules: colour.rs (Lab), km.rs (two-constant Kubelka-Munk per RGB channel; watercolor = layer over paper with water dilution, acrylic/oil = R_inf with white), imgproc.rs (value levels, k-means colour levels, procedural sample landscape), grid.rs (thirds/Fibonacci/grid), ui.rs (own immediate-mode widgets, rect ids for the self-test), app.rs + app/painting_view.rs + app/palettes_view.rs, selftest.rs. Palettes autosave to config dir palettes.json (not in test/screenshot modes). Extra flag --palettes opens the Palettes screen. Open unknowns: Crimson pigment code (used PR206), accuracy of estimated pigment colours/KM constants. Ideas next: spectral KM for more accurate mixes, glazing (layering transparent paints), export recipe sheet, save/restore last picture.",
-  "updated": "2026-11-17T09:05:45Z"
+  "handoff": "Previous turns: first build; then contours (View::Contours, \"Lines on top\", contour detail slider). This turn: explained value-box percentages (share of picture area per value level). Added caption beside the value boxes (\"1 = darkest value\", \"% = share of the picture's area\"; hud id value_scale_caption, shown when there is room), hover pop-up per box (ids value_box_i), self-test step value_shares (sum = 100%), MECHANICS.md row. All 13 self-test steps pass; rebuild_check passes (mechanics behaviour unverifiable). Not committed. Open unknowns unchanged.",
+  "updated": "2026-11-17T22:37:08Z"
 }

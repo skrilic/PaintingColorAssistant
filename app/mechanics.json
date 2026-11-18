@@ -73,7 +73,7 @@
     {
       "name": "views",
       "group": "image",
-      "value": "Original, Greyscale, Value levels, Colour levels",
+      "value": "Original, Greyscale, Value levels, Colour levels, Contours",
       "source": "request"
     },
     {
@@ -143,6 +143,48 @@
       "name": "k-means iterations",
       "group": "image",
       "value": 12,
+      "estimated": true
+    },
+    {
+      "name": "contour method",
+      "group": "image",
+      "value": "Canny-style edges on smoothed Lab",
+      "source": "request"
+    },
+    {
+      "name": "contour detail default",
+      "group": "image",
+      "value": 5,
+      "estimated": true
+    },
+    {
+      "name": "contour detail min",
+      "group": "image",
+      "value": 1,
+      "estimated": true
+    },
+    {
+      "name": "contour detail max",
+      "group": "image",
+      "value": 10,
+      "estimated": true
+    },
+    {
+      "name": "contour colour weight",
+      "group": "image",
+      "value": 0.5,
+      "estimated": true
+    },
+    {
+      "name": "contour low threshold ratio",
+      "group": "image",
+      "value": 0.45,
+      "estimated": true
+    },
+    {
+      "name": "contour lines on top default",
+      "group": "image",
+      "value": false,
       "estimated": true
     },
     {

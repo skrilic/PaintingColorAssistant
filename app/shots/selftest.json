@@ -1,6 +1,11 @@
 {
   "steps": [
     {
+      "detail": "value box percentages add up to 100.0% of the picture",
+      "passed": true,
+      "step": "value_shares"
+    },
+    {
       "detail": "value view shows 5 grey levels (asked for 5)",
       "passed": true,
       "step": "values"
@@ -39,6 +44,16 @@
       "detail": "value scale, level counts, palette, clicked-spot recipe, recipe list and rule-of-thirds overlay are drawn",
       "passed": true,
       "step": "hud"
+    },
+    {
+      "detail": "contour view draws lines on paper: 3.7% of the pixels are lines (detail 5)",
+      "passed": true,
+      "step": "contours"
+    },
+    {
+      "detail": "contour lines drawn over the original picture (12760 pixels)",
+      "passed": true,
+      "step": "contours_on_top"
     },
     {
       "detail": "created \"Acrylic 3\" (Acrylic) with paints: Hansa Yellow Light PY3 Transparent; Crimson PR206 Transparent",

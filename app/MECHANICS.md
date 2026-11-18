@@ -25,12 +25,21 @@ in `mechanics.json`.
 | What | Value | Source |
 |---|---|---|
 | Working copy longest side | 1400 px (bigger pictures are scaled down for display and analysis; crops use the full original) | estimated |
-| Views | Original, Greyscale, Value levels, Colour levels | request |
+| Views | Original, Greyscale, Value levels, Colour levels, Contours | request |
 | Value levels | default 5, range 2 to 10 | request (number chosen by artist); default estimated |
 | Value banding | L* (CIE lightness) between the 0.5% and 99.5% percentiles split in equal steps; shown as evenly spaced greys black to white | estimated |
+| Value scale percentages | share of the picture's area (pixels of the working copy) in each value level; they add up to 100%; caption beside the boxes, pop-up on hover | estimated |
 | Greyscale | each pixel shown as neutral grey of the same L* | estimated |
 | Colour levels | default 8, range 2 to 24 | request; default estimated |
 | Colour reduction | k-means++ in CIE Lab, 60 000 sampled pixels, 12 iterations, fixed seed; levels sorted dark to light; shown colour = mean sRGB of its pixels | estimated |
+| Contours | Canny-style edges on smoothed Lab (a*, b* weighted 0.5 against L*): Sobel gradient, thinning to ridges, hysteresis (weak edges down to 0.45 of strong), short pieces dropped | request (contours); method estimated |
+| Contour detail | default 5, range 1 to 10 | estimated |
+| Contour smoothing radius | ceil((11 - detail) / 2) + 1 px of the working copy, two box-blur passes | estimated |
+| Contour seed share | 0.05 + 0.04 x detail of the edge ridges | estimated |
+| Contour minimum length | max(6, 40 - 3 x detail) px | estimated |
+| Contour line thickening | longest side / 900 px on each side (1 px for the 1400 px working copy) | estimated |
+| Contours view | graphite lines (46, 46, 52) on paper (247, 244, 236) | estimated |
+| Lines on top | contour lines over any other view: dark on light areas, light on dark areas | estimated |
 
 ## Kubelka-Munk mixing
 

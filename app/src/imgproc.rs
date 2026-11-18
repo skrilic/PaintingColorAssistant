@@ -233,6 +233,243 @@ pub fn sample_avg(img: &RgbImage, x: u32, y: u32, r: u32) -> [u8; 3] {
     [(s[0] / n) as u8, (s[1] / n) as u8, (s[2] / n) as u8]
 }
 
+// ---------- contours (line drawing) ----------
+
+/// Contour detail range; higher keeps finer edges.
+pub const CONTOUR_DETAIL_MIN: i32 = 1;
+pub const CONTOUR_DETAIL_MAX: i32 = 10;
+/// Weight of the colour channels (a*, b*) against lightness when finding edges.
+pub const CONTOUR_COLOUR_WEIGHT: f32 = 0.5;
+/// Weak edges are kept down to this fraction of the strong threshold (hysteresis).
+pub const CONTOUR_LOW_RATIO: f32 = 0.45;
+/// Graphite line and paper colours of the Contours view.
+pub const CONTOUR_INK: [u8; 3] = [46, 46, 52];
+pub const CONTOUR_PAPER: [u8; 3] = [247, 244, 236];
+
+/// Smoothing radius (working-copy pixels) for a detail level.
+pub fn contour_blur_radius(detail: i32) -> usize {
+    ((CONTOUR_DETAIL_MAX + 1 - detail).max(1) as usize).div_ceil(2) + 1
+}
+
+/// Share of edge ridges that seed lines for a detail level.
+pub fn contour_seed_share(detail: i32) -> f32 {
+    0.05 + 0.04 * detail as f32
+}
+
+/// Lines shorter than this (pixels) are dropped as specks.
+pub fn contour_min_length(detail: i32) -> usize {
+    (40 - 3 * detail).max(6) as usize
+}
+
+/// Running box blur along rows then columns, applied in place.
+fn box_blur(ch: &mut [f32], w: usize, h: usize, r: usize) {
+    if r == 0 {
+        return;
+    }
+    let mut tmp = vec![0.0f32; w.max(h)];
+    for y in 0..h {
+        let row = &mut ch[y * w..(y + 1) * w];
+        let mut acc = 0.0;
+        let mut n = 0.0;
+        for x in 0..=r.min(w - 1) {
+            acc += row[x];
+            n += 1.0;
+        }
+        for x in 0..w {
+            tmp[x] = acc / n;
+            if x + r + 1 < w {
+                acc += row[x + r + 1];
+                n += 1.0;
+            }
+            if x >= r {
+                acc -= row[x - r];
+                n -= 1.0;
+            }
+        }
+        row.copy_from_slice(&tmp[..w]);
+    }
+    for x in 0..w {
+        let mut acc = 0.0;
+        let mut n = 0.0;
+        for y in 0..=r.min(h - 1) {
+            acc += ch[y * w + x];
+            n += 1.0;
+        }
+        for y in 0..h {
+            tmp[y] = acc / n;
+            if y + r + 1 < h {
+                acc += ch[(y + r + 1) * w + x];
+                n += 1.0;
+            }
+            if y >= r {
+                acc -= ch[(y - r) * w + x];
+                n -= 1.0;
+            }
+        }
+        for y in 0..h {
+            ch[y * w + x] = tmp[y];
+        }
+    }
+}
+
+/// Contour map of the picture: Canny-style edges on smoothed Lab (smooth, gradient,
+/// thin to ridges, hysteresis, drop specks), thickened so lines stay visible when scaled down.
+pub fn contours(a: &Analysis, w: u32, h: u32, detail: i32) -> Vec<bool> {
+    let (w, h) = (w as usize, h as usize);
+    let n = w * h;
+    if w < 3 || h < 3 || a.lab.len() != n {
+        return vec![false; n];
+    }
+    let r = contour_blur_radius(detail);
+    let mut ch: [Vec<f32>; 3] = [vec![0.0; n], vec![0.0; n], vec![0.0; n]];
+    for (i, p) in a.lab.iter().enumerate() {
+        ch[0][i] = p[0];
+        ch[1][i] = p[1] * CONTOUR_COLOUR_WEIGHT;
+        ch[2][i] = p[2] * CONTOUR_COLOUR_WEIGHT;
+    }
+    for c in ch.iter_mut() {
+        // two box passes approximate a Gaussian
+        box_blur(c, w, h, r);
+        box_blur(c, w, h, r.div_ceil(2));
+    }
+    // Sobel gradient, summed over channels
+    let mut mag = vec![0.0f32; n];
+    let mut dir = vec![0u8; n];
+    for y in 1..h - 1 {
+        for x in 1..w - 1 {
+            let (mut gx2, mut gy2, mut gxy) = (0.0f32, 0.0f32, 0.0f32);
+            for c in &ch {
+                let v = |dx: isize, dy: isize| c[(y as isize + dy) as usize * w + (x as isize + dx) as usize];
+                let gx = v(1, -1) + 2.0 * v(1, 0) + v(1, 1) - v(-1, -1) - 2.0 * v(-1, 0) - v(-1, 1);
+                let gy = v(-1, 1) + 2.0 * v(0, 1) + v(1, 1) - v(-1, -1) - 2.0 * v(0, -1) - v(1, -1);
+                gx2 += gx * gx;
+                gy2 += gy * gy;
+                gxy += gx * gy;
+            }
+            let i = y * w + x;
+            mag[i] = (gx2 + gy2).sqrt();
+            // dominant direction of the multi-channel gradient
+            let ang = 0.5 * (2.0 * gxy).atan2(gx2 - gy2);
+            let deg = (ang.to_degrees() + 180.0) % 180.0;
+            dir[i] = if !(22.5..157.5).contains(&deg) {
+                0
+            } else if deg < 67.5 {
+                1
+            } else if deg < 112.5 {
+                2
+            } else {
+                3
+            };
+        }
+    }
+    // thin to ridges (non-maximum suppression)
+    let mut ridge = vec![0.0f32; n];
+    for y in 1..h - 1 {
+        for x in 1..w - 1 {
+            let i = y * w + x;
+            let m = mag[i];
+            if m <= 0.0 {
+                continue;
+            }
+            let (a1, a2) = match dir[i] {
+                0 => (i - 1, i + 1),
+                1 => (i - w - 1, i + w + 1),
+                2 => (i - w, i + w),
+                _ => (i - w + 1, i + w - 1),
+            };
+            if m >= mag[a1] && m > mag[a2] {
+                ridge[i] = m;
+            }
+        }
+    }
+    let mut vals: Vec<f32> = ridge.iter().copied().filter(|&m| m > 0.5).collect();
+    if vals.is_empty() {
+        return vec![false; n];
+    }
+    vals.sort_by(|p, q| q.partial_cmp(p).unwrap());
+    let share = contour_seed_share(detail).clamp(0.01, 0.9);
+    let high = vals[((vals.len() - 1) as f32 * share) as usize].max(2.0);
+    let low = high * CONTOUR_LOW_RATIO;
+    // hysteresis: keep weak ridges connected to strong ones; drop short pieces
+    let min_len = contour_min_length(detail);
+    let mut edge = vec![false; n];
+    let mut seen = vec![false; n];
+    let mut stack = Vec::new();
+    let mut comp = Vec::new();
+    for start in 0..n {
+        if seen[start] || ridge[start] < high {
+            continue;
+        }
+        seen[start] = true;
+        stack.push(start);
+        comp.clear();
+        while let Some(i) = stack.pop() {
+            comp.push(i);
+            let (x, y) = (i % w, i / w);
+            for dy in -1isize..=1 {
+                for dx in -1isize..=1 {
+                    let (nx, ny) = (x as isize + dx, y as isize + dy);
+                    if nx < 0 || ny < 0 || nx >= w as isize || ny >= h as isize {
+                        continue;
+                    }
+                    let j = ny as usize * w + nx as usize;
+                    if !seen[j] && ridge[j] >= low {
+                        seen[j] = true;
+                        stack.push(j);
+                    }
+                }
+            }
+        }
+        if comp.len() >= min_len {
+            for &i in &comp {
+                edge[i] = true;
+            }
+        }
+    }
+    // thicken: about one screen pixel when the working copy is shown at ~800 px
+    let t = (w.max(h) / 900) as isize;
+    if t > 0 {
+        let src = edge.clone();
+        for y in 0..h {
+            for x in 0..w {
+                if !src[y * w + x] {
+                    continue;
+                }
+                for dy in -t..=t {
+                    for dx in -t..=t {
+                        let (nx, ny) = (x as isize + dx, y as isize + dy);
+                        if nx >= 0 && ny >= 0 && nx < w as isize && ny < h as isize {
+                            edge[ny as usize * w + nx as usize] = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    edge
+}
+
+/// Contours alone: graphite lines on paper.
+pub fn render_contours(edge: &[bool]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(edge.len() * 4);
+    for &e in edge {
+        let c = if e { CONTOUR_INK } else { CONTOUR_PAPER };
+        out.extend_from_slice(&[c[0], c[1], c[2], 255]);
+    }
+    out
+}
+
+/// Draw contour lines over an RGBA picture: dark on light areas, light on dark areas.
+pub fn overlay_contours(rgba: &mut [u8], edge: &[bool]) {
+    for (px, &e) in rgba.chunks_mut(4).zip(edge) {
+        if e {
+            let luma = (px[0] as u32 * 3 + px[1] as u32 * 6 + px[2] as u32) / 10;
+            let c = if luma > 110 { [20, 20, 24] } else { [245, 245, 240] };
+            px[..3].copy_from_slice(&c);
+        }
+    }
+}
+
 // ---------- procedural sample picture ----------
 
 fn hash(x: i32, y: i32) -> f32 {

@@ -58,6 +58,8 @@ impl SelfTest {
         q.push_back(Click("view_values"));
         q.push_back(Wait(2));
         q.push_back(Check(Box::new(|app, _ui, r| {
+            let total: f32 = app.values.as_ref().map(|v| v.share.iter().sum()).unwrap_or(0.0);
+            res(r, "value_shares", (total - 1.0).abs() < 0.01, format!("value box percentages add up to {:.1}% of the picture", total * 100.0));
             let greys: HashSet<u8> = app.display_rgba.chunks(4).map(|p| p[0]).collect();
             let grey_only = app.display_rgba.chunks(4).all(|p| p[0] == p[1] && p[1] == p[2]);
             let ok = app.view == View::Values && grey_only && greys.len() == app.value_levels as usize;
@@ -154,7 +156,7 @@ impl SelfTest {
         q.push_back(Click("overlay_thirds"));
         q.push_back(Wait(2));
         q.push_back(Check(Box::new(|app, ui, r| {
-            let need = ["value_scale", "value_levels_label", "colour_levels_label", "palette", "picked", "recipes", "overlay"];
+            let need = ["value_scale", "value_scale_caption", "value_levels_label", "colour_levels_label", "palette", "picked", "recipes", "overlay"];
             let missing: Vec<&str> = need.iter().copied().filter(|n| !ui.hud.contains(*n)).collect();
             let ok = missing.is_empty() && app.overlay.kind == Overlay::Thirds;
             let detail = if ok {
@@ -163,6 +165,34 @@ impl SelfTest {
                 format!("missing on screen: {}", missing.join(", "))
             };
             res(r, "hud", ok, detail);
+        })));
+
+        // Contours: line drawing of the picture, then the same lines over the original.
+        q.push_back(Click("view_contours"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, ui, r| {
+            let share = app.contours.as_ref().map(|e| e.iter().filter(|&&b| b).count() as f32 / e.len().max(1) as f32).unwrap_or(0.0);
+            let tones: HashSet<[u8; 3]> = app.display_rgba.chunks(4).map(|p| [p[0], p[1], p[2]]).collect();
+            let ok = app.view == View::Contours && (0.005..0.3).contains(&share) && tones.len() == 2 && ui.hud.contains("contour_detail_label");
+            res(r, "contours", ok, format!("contour view draws lines on paper: {:.1}% of the pixels are lines (detail {})", share * 100.0, app.contour_detail));
+        })));
+        q.push_back(Click("contours_on_top"));
+        q.push_back(Click("view_original"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let Some((img, edge)) = app.img.as_ref().zip(app.contours.as_ref()) else {
+                res(r, "contours_on_top", false, "no contour map".into());
+                return;
+            };
+            let changed = img
+                .work
+                .pixels()
+                .zip(app.display_rgba.chunks(4))
+                .zip(edge)
+                .filter(|((p, d), e)| **e && p.0 != [d[0], d[1], d[2]])
+                .count();
+            let ok = app.contours_on_top && app.view == View::Original && changed > 0;
+            res(r, "contours_on_top", ok, format!("contour lines drawn over the original picture ({changed} pixels)"));
         })));
 
         // Palettes: create an acrylic palette and type in a paint.

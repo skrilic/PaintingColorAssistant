@@ -76,12 +76,32 @@ impl App {
 
         ui.header("VIEW", x, y);
         y += 10.0;
-        for v in View::ALL {
-            if ui.button_ex(v.id(), Rect::new(x, y, bw, 28.0), v.label(), self.view == v) {
-                self.view = v;
+        for (i, v) in View::ALL.iter().enumerate() {
+            let br = Rect::new(x + (i % 2) as f32 * (half + 6.0), y + (i / 2) as f32 * 32.0, half, 28.0);
+            if ui.button_ex(v.id(), br, v.label(), self.view == *v) {
+                self.view = *v;
                 self.tex_dirty = true;
             }
-            y += 32.0;
+        }
+        // sixth cell: contour lines over the other views
+        let cr = Rect::new(x + half + 12.0, y + 2.0 * 32.0, half - 6.0, 28.0);
+        if ui.checkbox("contours_on_top", cr, "Lines on top", &mut self.contours_on_top) {
+            self.tex_dirty = true;
+        }
+        y += 3.0 * 32.0;
+        if self.view == View::Contours || self.contours_on_top {
+            y += 14.0;
+            ui.text("Contour detail", x, y + 4.0, 15.0, TEXT);
+            let s = self.contour_detail.to_string();
+            ui.text(&s, x + bw - ui.measure(&s, 16.0), y + 4.0, 16.0, ACCENT);
+            ui.hud("contour_detail_label");
+            y += 10.0;
+            let (lo, hi) = (imgproc::CONTOUR_DETAIL_MIN, imgproc::CONTOUR_DETAIL_MAX);
+            if ui.slider_int("contour_detail", Rect::new(x - 6.0, y, bw + 12.0, 24.0), &mut self.contour_detail, lo, hi) {
+                self.contours = None;
+                self.tex_dirty = true;
+            }
+            y += 30.0;
         }
         y += 10.0;
         ui.text("Value levels", x, y + 4.0, 15.0, TEXT);
@@ -332,11 +352,12 @@ impl App {
         let x = r.x + 16.0;
         let bx = x + 62.0;
         match self.view {
-            View::Original | View::Greyscale | View::Values => {
+            View::Original | View::Greyscale | View::Values | View::Contours => {
                 let Some(v) = &self.values else { return };
                 ui.text("Values", x, r.y + 34.0, 14.0, MUTED);
                 let n = v.lightness.len();
                 let bw = ((r.w - 90.0) / n as f32).min(80.0);
+                let mut tip = None;
                 for i in 0..n {
                     let g = crate::colour::grey_for_lightness(v.lightness[i]);
                     let br = Rect::new(bx + i as f32 * bw, r.y + 10.0, bw - 4.0, 38.0);
@@ -344,9 +365,41 @@ impl App {
                     let tc = if v.lightness[i] > 55.0 { BLACK } else { WHITE };
                     ui.text(&format!("{}", i + 1), br.x + 6.0, br.y + 16.0, 14.0, tc);
                     ui.text(&format!("{:.0}%", v.share[i] * 100.0), br.x + 6.0, br.y + 32.0, 12.0, tc);
+                    ui.mark(&format!("value_box_{i}"), br);
+                    if ui.hovered(br) {
+                        let where_ = match i {
+                            0 => " (darkest)".to_string(),
+                            _ if i + 1 == n => " (lightest)".to_string(),
+                            _ => String::new(),
+                        };
+                        let text = format!(
+                            "Value {} of {}{}: {:.0}% of the picture's area has this value",
+                            i + 1,
+                            n,
+                            where_,
+                            v.share[i] * 100.0
+                        );
+                        tip = Some((text, br));
+                    }
                 }
                 ui.mark("value_scale", Rect::new(bx, r.y + 10.0, bw * n as f32, 38.0));
                 ui.hud("value_scale");
+                // Caption explaining the numbers, when there is room beside the boxes.
+                let cx = bx + bw * n as f32 + 10.0;
+                if r.x + r.w - cx > 170.0 {
+                    ui.text("1 = darkest value", cx, r.y + 24.0, 12.0, MUTED);
+                    ui.text("% = share of the picture's area", cx, r.y + 40.0, 12.0, MUTED);
+                    ui.hud("value_scale_caption");
+                }
+                if let Some((text, br)) = tip {
+                    let tw = ui.measure(&text, 14.0);
+                    let tx = (br.x + br.w / 2.0 - tw / 2.0).clamp(r.x + 4.0, r.x + r.w - tw - 14.0);
+                    let tr = Rect::new(tx - 6.0, br.y - 34.0, tw + 12.0, 24.0);
+                    rrect(tr, 4.0, BG);
+                    rrect_lines(tr, 4.0, BORDER);
+                    ui.text(&text, tx, tr.y + 17.0, 14.0, TEXT);
+                    ui.hud("value_tip");
+                }
             }
             View::Colours => {
                 let Some(c) = &self.colours else { return };

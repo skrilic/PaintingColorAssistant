@@ -45,16 +45,18 @@ pub enum View {
     Greyscale,
     Values,
     Colours,
+    Contours,
 }
 
 impl View {
-    pub const ALL: [View; 4] = [View::Original, View::Greyscale, View::Values, View::Colours];
+    pub const ALL: [View; 5] = [View::Original, View::Greyscale, View::Values, View::Colours, View::Contours];
     pub fn label(self) -> &'static str {
         match self {
             View::Original => "Original",
             View::Greyscale => "Greyscale",
             View::Values => "Value levels",
             View::Colours => "Colour levels",
+            View::Contours => "Contours",
         }
     }
     pub fn id(self) -> &'static str {
@@ -63,6 +65,7 @@ impl View {
             View::Greyscale => "view_grey",
             View::Values => "view_values",
             View::Colours => "view_colours",
+            View::Contours => "view_contours",
         }
     }
 }
@@ -110,6 +113,11 @@ pub struct App {
     pub colour_levels: i32,
     pub values: Option<ValueLevels>,
     pub colours: Option<ColourLevels>,
+    /// Contour (edge) map of the working copy, computed when shown.
+    pub contours: Option<Vec<bool>>,
+    pub contour_detail: i32,
+    /// Draw the contour lines over the other views too.
+    pub contours_on_top: bool,
     texture: Option<Texture2D>,
     tex_dirty: bool,
     pub display_rgba: Vec<u8>,
@@ -158,6 +166,9 @@ impl App {
             colour_levels: 8,
             values: None,
             colours: None,
+            contours: None,
+            contour_detail: 5,
+            contours_on_top: false,
             texture: None,
             tex_dirty: true,
             display_rgba: Vec::new(),
@@ -249,6 +260,7 @@ impl App {
     fn image_changed(&mut self) {
         self.values = None;
         self.colours = None;
+        self.contours = None;
         self.tex_dirty = true;
         self.highlight = None;
         self.picked = None;
@@ -349,6 +361,12 @@ impl App {
             self.recipes.clear();
             self.tex_dirty = true;
         }
+        let want_contours = self.view == View::Contours || self.contours_on_top;
+        if want_contours && self.contours.is_none() {
+            let (w, h) = img.work.dimensions();
+            self.contours = Some(imgproc::contours(&img.analysis, w, h, self.contour_detail));
+            self.tex_dirty = true;
+        }
         if self.tex_dirty {
             self.tex_dirty = false;
             self.display_rgba = match self.view {
@@ -370,7 +388,13 @@ impl App {
                     let c = self.colours.as_ref().unwrap();
                     imgproc::render_levels(&c.index, &c.srgb, self.highlight)
                 }
+                View::Contours => imgproc::render_contours(self.contours.as_deref().unwrap_or(&[])),
             };
+            if self.contours_on_top && self.view != View::Contours {
+                if let Some(e) = &self.contours {
+                    imgproc::overlay_contours(&mut self.display_rgba, e);
+                }
+            }
             let (w, h) = img.work.dimensions();
             match &self.texture {
                 Some(t) if t.width() as u32 == w && t.height() as u32 == h => t.update_from_bytes(w, h, &self.display_rgba),
