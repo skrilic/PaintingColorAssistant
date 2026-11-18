@@ -22,17 +22,24 @@ Kubelka-Munk mixing recipes for every colour, made from the paints in your own p
 - **Crop** – free or fixed aspect ratios (1:1, 4:5, 3:4, 2:3, 5:4, 4:3, 3:2, 16:9), with undo.
 - **Composition overlays** – rule of thirds, Fibonacci spiral (mirrorable) or a square grid
   with optional diagonals and cell labels.
+- **Recently opened** – the arrow beside *Open picture...* lists the last 10 pictures,
+  so you can go back to an earlier painting in one click. Each picture remembers its own
+  settings (crop, views, levels, overlay, paint type and palette, paints per mix, clicked
+  spot), which come back whenever you open it again.
 - **Mixing recipes** – every colour level gets a recipe such as
-  *"4 Cobalt Blue + 2 Crimson + 1 Yellow Deep, water: like coffee"* with a match rating.
-  Click anywhere on the picture to get a recipe for that spot.
+  *"4 Cobalt Blue + 2 Crimson + 1 Yellow Deep, water: like coffee"* with a match rating
+  (excellent / good / close / rough, by colour difference dE); hover the rating for an
+  explanation. Click anywhere on the picture to get a recipe for that spot.
 - **Export PDF** – the *Export PDF...* button saves a reference brochure (A4) with the
   original picture, the value study with its percentages, the contour drawing, the chosen
   palette with its mixing chart, and a recipe for every colour level using the chosen
-  number of paints per mix. You pick the file name and folder.
+  number of paints per mix, followed by a legend of the match ratings. You pick the file
+  name and folder.
 
 Palettes are saved automatically to
 `<config dir>/PaintingColorAssistant/palettes.json`
-(on Linux `~/.config/PaintingColorAssistant/palettes.json`).
+(on Linux `~/.config/PaintingColorAssistant/palettes.json`), and the recently opened
+pictures with their settings to `recent.json` in the same folder.
 
 ## Download
 

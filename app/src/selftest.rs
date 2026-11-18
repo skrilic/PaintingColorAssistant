@@ -5,6 +5,7 @@ use crate::app::{App, Screen, View};
 use crate::grid::Overlay;
 use crate::km::Lighten;
 use crate::palette::{Medium, Transparency};
+use crate::recent::PictureSettings;
 use crate::ui::{Input, Ui};
 use macroquad::prelude::*;
 use std::collections::{HashSet, VecDeque};
@@ -25,6 +26,9 @@ enum Action {
     Backspace(u32),
     Check(CheckFn),
 }
+
+/// File name of the picture `main` writes to the temp folder and puts in the recent list.
+pub const RECENT_PICTURE: &str = "painting-colour-assistant-selftest.png";
 
 pub struct StepResult {
     pub step: String,
@@ -226,12 +230,17 @@ impl SelfTest {
             let text = String::from_utf8_lossy(&bytes);
             let pages = text.matches("/Type /Page ").count();
             let images = text.matches("/Subtype /Image").count();
-            let ok = bytes.starts_with(b"%PDF-") && text.trim_end().ends_with("%%EOF") && pages >= 4 && images == 4;
+            let legend = ["(Match rating \\(dE\\))", "(excellent)", "(good)", "(close)", "(rough)"].iter().all(|s| text.contains(s));
+            let ok = bytes.starts_with(b"%PDF-") && text.trim_end().ends_with("%%EOF") && pages >= 4 && images == 4 && legend;
             res(
                 r,
                 "export_pdf",
                 ok,
-                format!("Export PDF wrote a {} KB brochure with {pages} pages and {images} pictures (original, values, contours, colour levels)", bytes.len() / 1024),
+                format!(
+                    "Export PDF wrote a {} KB brochure with {pages} pages and {images} pictures (original, values, contours, colour levels){}",
+                    bytes.len() / 1024,
+                    if legend { ", ending with the match rating legend" } else { ", but the match rating legend is missing" }
+                ),
             );
         })));
 
@@ -297,6 +306,80 @@ impl SelfTest {
                     "switched to acrylic: palette \"{}\", recipes recomputed{}",
                     pal.map(|p| p.name.as_str()).unwrap_or("-"),
                     if uses_white { ", lighter colours use white paint" } else { "" }
+                ),
+            );
+        })));
+
+        // Recently opened: the arrow beside "Open picture..." lists the picture main put there.
+        q.push_back(Click("open_recent"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|_app, ui, r| {
+            let ok = ui.rects.contains_key("open_recent#0") && ui.rects.contains_key("open_recent#1") && !ui.rects.contains_key("open_recent#2");
+            res(r, "recent_menu", ok, "the recent menu lists one picture and \"Clear recent list\"".into());
+        })));
+        q.push_back(Click("open_recent#0"));
+        q.push_back(Wait(3));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let name = app.img.as_ref().map(|i| i.name.as_str()).unwrap_or("-");
+            let first = app.recent.pictures.first().and_then(|p| p.path.file_name()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let ok = name == RECENT_PICTURE && app.recent.pictures.len() == 1 && first == RECENT_PICTURE && !app.persist;
+            res(r, "open_recent", ok, format!("picked \"{first}\" from the recent menu and it opened as \"{name}\" (list kept in memory only)"));
+        })));
+
+        // Settings per picture: change them here, switch to the sample picture, then reopen.
+        q.push_back(Click("view_values"));
+        q.push_back(SliderTo("value_levels", (3.0 - 2.0) / (10.0 - 2.0)));
+        q.push_back(Click("overlay_grid"));
+        q.push_back(Click("crop_start"));
+        q.push_back(Wait(2));
+        q.push_back(Drag("canvas_image", vec2(0.9, 0.9), vec2(0.6, 0.7), 14));
+        q.push_back(Wait(1));
+        q.push_back(Click("crop_apply"));
+        q.push_back(Wait(3));
+        q.push_back(ClickAt("canvas_image", vec2(0.4, 0.5)));
+        q.push_back(Wait(2));
+        let kept: std::rc::Rc<std::cell::RefCell<Option<PictureSettings>>> = Default::default();
+        let k0 = kept.clone();
+        q.push_back(Check(Box::new(move |app, _ui, r| {
+            let now = app.picture_settings();
+            let stored = app.picture_path.as_deref().and_then(|k| app.recent.settings(k)).cloned();
+            let ok = now.is_some() && now == stored;
+            res(r, "settings_kept", ok, "after each change the picture's settings are kept in the recent list".into());
+            *k0.borrow_mut() = now;
+        })));
+        q.push_back(Click("sample_image"));
+        q.push_back(Wait(2));
+        q.push_back(Click("view_colours"));
+        q.push_back(SliderTo("value_levels", 1.0));
+        q.push_back(Click("overlay_none"));
+        q.push_back(Wait(2));
+        q.push_back(Click("open_recent"));
+        q.push_back(Wait(2));
+        q.push_back(Click("open_recent#0"));
+        q.push_back(Wait(3));
+        let k1 = kept.clone();
+        q.push_back(Check(Box::new(move |app, _ui, r| {
+            let want = k1.borrow().clone();
+            let got = app.picture_settings();
+            let crop = app.img.as_ref().and_then(|i| i.crop);
+            let ok = want.is_some()
+                && got == want
+                && app.view == View::Values
+                && app.value_levels == 3
+                && app.overlay.kind == Overlay::Grid
+                && crop.is_some()
+                && app.picked.as_ref().is_some_and(|p| p.recipe.is_some());
+            res(
+                r,
+                "settings_restored",
+                ok,
+                format!(
+                    "reopened the picture with its own settings: {} view, {} value levels, {:?} overlay, crop {:?}, clicked spot {}",
+                    app.view.label(),
+                    app.value_levels,
+                    app.overlay.kind,
+                    crop,
+                    if app.picked.is_some() { "restored" } else { "missing" }
                 ),
             );
         })));

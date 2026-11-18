@@ -130,6 +130,35 @@ fn match_colour(de: f32) -> [u8; 3] {
     }
 }
 
+/// Legend for the match rating after the recipe list: what dE means and the four bands.
+fn match_legend(p: &mut Pages) {
+    let cw = p.content_w();
+    let intro = wrap(
+        "dE (delta E) is the colour difference between the PICTURE and MIX swatches, measured in Lab colour space (CIE76). \
+         0 means the same colour; about 2.3 is the smallest difference most people can see side by side. Smaller is better.",
+        9.0,
+        false,
+        cw,
+    );
+    let bands = match_bands();
+    let row_h = 14.0;
+    // heading, intro and table stay together on one page
+    p.y += 14.0;
+    p.ensure(20.0 + intro.len() as f32 * 12.0 + 18.0 + bands.len() as f32 * row_h);
+    p.small_heading("Match rating (dE)");
+    for l in &intro {
+        p.y += 12.0;
+        p.doc.text(MARGIN, p.y, 9.0, false, MUTED, l);
+    }
+    p.y += 18.0;
+    for ((word, range, meaning), colour) in bands.iter().zip([GOOD, GOOD, WARN, BAD]) {
+        p.doc.text(MARGIN, p.y, 9.5, true, colour, word);
+        p.doc.text(MARGIN + 70.0, p.y, 9.5, false, INK, range);
+        p.doc.text(MARGIN + 150.0, p.y, 9.5, false, INK, meaning);
+        p.y += row_h;
+    }
+}
+
 impl App {
     /// Button action: ask for a file name and folder, then save the brochure there.
     pub(super) fn export_pdf(&mut self) {
@@ -391,7 +420,7 @@ impl App {
         p.heading(
             "Colour mixes",
             &format!(
-                "Recipes for the {nc} colour levels of the picture, using {up_to} from \"{}\". Parts are by volume.{light} The mixes are Kubelka-Munk predictions from estimated paint data, so test them on a scrap first.",
+                "Recipes for the {nc} colour levels of the picture, using {up_to} from \"{}\". Parts are by volume.{light} The mixes are Kubelka-Munk predictions from estimated paint data, so test them on a scrap first. The match rating (dE) is explained after the list.",
                 pal.name
             ),
         );
@@ -436,6 +465,7 @@ impl App {
             p.small_heading("Clicked spot");
             row(&mut p, "*", pk.srgb, pk.recipe.as_ref(), "the spot you clicked on the picture");
         }
+        match_legend(&mut p);
         let pages = p.doc.page_count();
         Ok((p.doc.finish(), pages))
     }

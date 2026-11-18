@@ -1,0 +1,195 @@
+//! Recently opened pictures, newest first, with each picture's settings (crop, views,
+//! overlay, paints), saved next to the palettes. The menu shows the newest `RECENT_MAX`;
+//! settings are kept for the newest `REMEMBER_MAX`.
+
+use crate::app::View;
+use crate::grid::OverlaySettings;
+use crate::palette::Medium;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+
+/// How many pictures the "recently opened" menu shows.
+pub const RECENT_MAX: usize = 10;
+/// How many pictures keep their settings.
+pub const REMEMBER_MAX: usize = 100;
+
+/// What the painting screen looked like for one picture, restored when it is opened again.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct PictureSettings {
+    /// Crop in pixels of the original picture: x, y, width, height.
+    pub crop: Option<[u32; 4]>,
+    pub view: View,
+    pub value_levels: i32,
+    pub colour_levels: i32,
+    pub contour_detail: i32,
+    pub contours_on_top: bool,
+    pub overlay: OverlaySettings,
+    pub medium: Medium,
+    /// Palette name; when it is gone, the first palette of `medium` is used.
+    pub palette: String,
+    pub max_paints: i32,
+    pub allow_lighten: bool,
+    /// Clicked spot, 0..1 across the (cropped) picture.
+    pub picked: Option<[f32; 2]>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RecentPicture {
+    pub path: PathBuf,
+    #[serde(default)]
+    pub settings: Option<PictureSettings>,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct Recent {
+    pub version: u32,
+    pub pictures: Vec<RecentPicture>,
+}
+
+impl Recent {
+    /// Puts `path` at the top of the list (once), keeping its settings, and returns the key
+    /// it is stored under (the full path), or `None` when it cannot be saved.
+    pub fn add(&mut self, path: &Path) -> Option<PathBuf> {
+        let path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        // JSON keeps text only; a path that is not valid Unicode cannot be saved.
+        path.to_str()?;
+        self.version = 2;
+        let entry = match self.pictures.iter().position(|p| p.path == path) {
+            Some(i) => self.pictures.remove(i),
+            None => RecentPicture { path: path.clone(), settings: None },
+        };
+        self.pictures.insert(0, entry);
+        self.pictures.truncate(REMEMBER_MAX);
+        Some(path)
+    }
+
+    /// The pictures shown in the menu, newest first.
+    pub fn shown(&self) -> &[RecentPicture] {
+        &self.pictures[..self.pictures.len().min(RECENT_MAX)]
+    }
+
+    pub fn settings(&self, key: &Path) -> Option<&PictureSettings> {
+        self.pictures.iter().find(|p| p.path == key).and_then(|p| p.settings.as_ref())
+    }
+
+    /// Stores the settings of a picture in the list; returns whether anything changed.
+    pub fn set_settings(&mut self, key: &Path, settings: PictureSettings) -> bool {
+        match self.pictures.iter_mut().find(|p| p.path == key) {
+            Some(p) if p.settings.as_ref() != Some(&settings) => {
+                p.settings = Some(settings);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Forgets all pictures and their settings.
+    pub fn clear(&mut self) {
+        self.pictures.clear();
+    }
+}
+
+/// Menu text for a recent picture: file name, a tab, then where it is
+/// (the last two folders, or "not found" when the file is gone).
+pub fn menu_label(path: &Path) -> String {
+    let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string_lossy().to_string());
+    if !path.is_file() {
+        return format!("{name}\tnot found");
+    }
+    let folders: Vec<String> = path
+        .parent()
+        .map(|d| d.components().filter_map(|c| c.as_os_str().to_str()).filter(|c| *c != "/" && *c != "\\").map(str::to_string).collect())
+        .unwrap_or_default();
+    let tail = folders.len().saturating_sub(2);
+    let mut place = folders[tail..].join("/");
+    if tail > 0 {
+        place = format!(".../{place}");
+    }
+    format!("{name}\t{place}")
+}
+
+pub fn recent_path() -> Option<PathBuf> {
+    dirs::config_dir().map(|d| d.join("PaintingColorAssistant").join("recent.json"))
+}
+
+/// Saved list, or an empty one when there is none (or it cannot be read).
+pub fn load() -> Recent {
+    recent_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default()
+}
+
+pub fn save(recent: &Recent) -> Result<(), String> {
+    let path = recent_path().ok_or("no settings folder")?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(recent).map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::grid::Overlay;
+
+    fn pic(i: usize) -> PathBuf {
+        PathBuf::from(format!("/no/such/folder/pic{i}.png"))
+    }
+
+    fn settings() -> PictureSettings {
+        PictureSettings {
+            crop: Some([10, 20, 300, 200]),
+            view: View::Values,
+            value_levels: 3,
+            colour_levels: 12,
+            contour_detail: 7,
+            contours_on_top: true,
+            overlay: OverlaySettings { kind: Overlay::Grid, cells: 8, diagonals: true, flip_x: false, flip_y: true, colour: 2, opacity: 0.5 },
+            medium: Medium::Oil,
+            palette: "Oil 1".into(),
+            max_paints: 2,
+            allow_lighten: false,
+            picked: Some([0.25, 0.75]),
+        }
+    }
+
+    #[test]
+    fn newest_first_without_duplicates_and_capped() {
+        let mut r = Recent::default();
+        for i in 0..(REMEMBER_MAX + 3) {
+            r.add(&pic(i));
+        }
+        r.add(&pic(5));
+        assert_eq!(r.pictures.len(), REMEMBER_MAX);
+        assert_eq!(r.shown().len(), RECENT_MAX);
+        assert_eq!(r.pictures[0].path, pic(5));
+        assert_eq!(r.pictures.iter().filter(|p| p.path == pic(5)).count(), 1);
+        assert_eq!(r.pictures[1].path, pic(REMEMBER_MAX + 2));
+    }
+
+    #[test]
+    fn settings_follow_the_picture_and_survive_saving() {
+        let mut r = Recent::default();
+        let key = r.add(&pic(1)).unwrap();
+        r.add(&pic(2));
+        assert!(r.set_settings(&key, settings()));
+        assert!(!r.set_settings(&key, settings()), "same settings again is no change");
+        assert!(!r.set_settings(&pic(99), settings()), "pictures not in the list keep nothing");
+        // opening it again moves it to the top with its settings
+        r.add(&pic(1));
+        assert_eq!(r.pictures[0].path, pic(1));
+        let back: Recent = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
+        assert_eq!(back.settings(&key), Some(&settings()));
+        assert_eq!(back.settings(&pic(2)), None);
+    }
+
+    #[test]
+    fn menu_label_marks_missing_files() {
+        assert_eq!(menu_label(Path::new("/no/such/folder/pic.png")), "pic.png\tnot found");
+        let here = std::env::current_exe().unwrap();
+        let label = menu_label(&here);
+        assert!(label.contains('\t') && !label.ends_with("not found"), "{label}");
+    }
+}

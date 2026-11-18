@@ -11,6 +11,11 @@ in `mechanics.json`.
 | Screens | 1 Palettes, 2 Painting (tabs in the top bar) | request: "artist creates palettes at the beginning" |
 | First start | opens on Palettes; later starts open on Painting | estimated |
 | Open a picture | "Open picture..." file dialog, drop a file on the window, or pass a path on the command line | request |
+| Recently opened | arrow button beside "Open picture..." lists recent pictures, newest first (file name and last two folders, "not found" if missing), then "Clear recent list"; every picture opened from a file is added | request |
+| Recent list length | 10 pictures in the menu; settings kept for the last 100 pictures | estimated |
+| Settings per picture | crop, view, value levels, colour levels, contour detail, lines on top, overlay (kind, grid cells, diagonals, mirroring, line colour and strength), paint type, palette (by name; first palette of that paint type if it is gone), paints per mix, lightening, clicked spot; restored whenever that picture is opened again from a file. New pictures start with the current settings and no crop | request |
+| Settings saved | after every finished change (no mouse button held) and when another picture is opened; "Clear recent list" forgets the settings too | estimated |
+| Recent list saved | JSON next to the palettes (`PaintingColorAssistant/recent.json`); `--screenshot` / `--self-test` never read or write it | estimated |
 | Pick a colour | left click on the picture (Original / Greyscale / Value views) gives a recipe for a 5x5 px average | estimated |
 | Select a colour level | left click on the picture or a recipe row (Colour levels view) fades the other levels | estimated |
 | Crop | "Crop..." then drag: outside the frame = new frame, inside = move, corner handle (12 px) = resize; "Apply crop", "Undo crop" | request |
@@ -108,6 +113,7 @@ its masstone colour (full strength), its transparency and its tinting strength.
 | Page 2 | value levels picture with the value scale and percentages, contour drawing at the same size | request |
 | Page 3 | chosen palette: paints, pigment codes, transparency, tinting strength, 1:1 mixing chart and lightening steps | request |
 | Page 4+ | colour levels picture and a recipe for every level, with the chosen paints per mix (1, 2 or 3), plus the clicked spot | request |
+| Match rating legend | after the recipe list: what dE means and the four match words with their dE ranges (same text as the app's pop-up) | request |
 | Pictures | JPEG quality 90 at the working-copy size (up to 1400 px) | estimated |
 | Text | Helvetica (built into PDF readers); letters outside its set lose their accent | estimated |
 

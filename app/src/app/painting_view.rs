@@ -22,9 +22,15 @@ impl App {
         let mut y = r.y + 22.0;
         ui.header("PICTURE", x, y);
         y += 10.0;
-        if ui.button("open_image", Rect::new(x, y, bw, 32.0), "Open picture...") {
+        let open = Rect::new(x, y, bw - 38.0, 32.0);
+        if ui.button("open_image", open, "Open picture...") {
             self.open_dialog();
         }
+        let menu = Rect::new(x + bw - 32.0, y, 32.0, 32.0);
+        if let Some(i) = ui.menu_button("open_recent", menu, Rect::new(x, y, bw, 32.0), || self.recent_menu_items()) {
+            self.recent_menu_pick(i);
+        }
+        ui.tooltip("open_recent_tip", menu, || vec![("Recently opened pictures".to_string(), TEXT)]);
         y += 38.0;
         if ui.button("sample_image", Rect::new(x, y, bw, 28.0), "Use sample picture") {
             self.set_image("Sample landscape".into(), imgproc::sample_landscape(1200, 800));

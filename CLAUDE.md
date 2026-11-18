@@ -24,7 +24,7 @@ cargo run -- <image path>                     # open with a picture
 
 - The self-test always exits 0. Read the JSON: every step must have `"passed": true`.
 - `--screenshot` / `--self-test` open a real window and use `palette::default_store()`;
-  they never read or write the user's `palettes.json`.
+  they never read or write the user's `palettes.json` or `recent.json` (`App::persist` is false).
 - After UI changes, run both the self-test and a screenshot and look at the PNG.
 
 ## Releases
@@ -54,6 +54,7 @@ cargo run -- <image path>                     # open with a picture
   `app/palettes_view.rs` as `impl App` blocks.
 - `ui.rs` – own immediate-mode widgets. Every widget registers its rect under a string id;
   `selftest.rs` clicks widgets by those ids. **Renaming a widget id breaks the self-test.**
+  Popup items are `"<id>#<n>"`; `ui.tooltip` is drawn last in `Ui::end` (tabs = columns).
 - `selftest.rs` – queue of `Action`s (click, drag, type, wait, check) producing synthetic
   `Input` per frame; checks read `App` state directly.
 - `km.rs` – two-constant Kubelka-Munk per linear RGB channel. Watercolor = film over paper
@@ -62,7 +63,11 @@ cargo run -- <image path>                     # open with a picture
 - `imgproc.rs` – working copy capped at `WORK_MAX_SIDE`; crops apply to the full original.
   Colour levels = seeded k-means++ in Lab (deterministic).
 - `colour.rs` – sRGB/linear/Lab, CIE76 ΔE. `palette.rs` – `Paint`, `Palette`, `Store`,
-  45-pigment `LIBRARY`, JSON persistence in `dirs::config_dir()`.
+  45-pigment `LIBRARY`, JSON persistence in `dirs::config_dir()`. `recent.rs` – recently opened
+  pictures with their `PictureSettings` (`recent.json` beside `palettes.json`). `App`
+  stores the open picture's settings each frame no mouse button is held, and in `set_image`
+  before switching; `open_path` restores them. A new per-picture setting goes in
+  `PictureSettings`, `App::picture_settings` and `App::apply_settings`.
 - `grid.rs` – rule of thirds, Fibonacci spiral, square grid overlays.
 - `pdf.rs` – minimal PDF writer (JPEG images, shapes, Helvetica text with built-in widths).
   `app/export.rs` lays out the reference brochure; "Export PDF" uses the rfd save dialog,

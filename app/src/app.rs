@@ -9,6 +9,7 @@ use crate::grid::{Overlay, OverlaySettings};
 use crate::imgproc::{self, Analysis, ColourLevels, ValueLevels};
 use crate::km::{MATCH_CLOSE, MATCH_EXCELLENT, MATCH_GOOD, Mixer, Recipe, match_label};
 use crate::palette::{self, Medium, Palette, Store, Transparency};
+use crate::recent::{self, PictureSettings, Recent};
 use crate::ui::{self, BAD, BG, BORDER, GOOD, MUTED, PANEL, TEXT, Ui, WARN, col};
 use image::RgbImage;
 use macroquad::prelude::*;
@@ -40,7 +41,7 @@ pub enum Screen {
     Painting,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum View {
     Original,
     Greyscale,
@@ -146,6 +147,10 @@ pub struct App {
     pub export_path_override: Option<std::path::PathBuf>,
     last_export_dir: Option<std::path::PathBuf>,
     pub canvas_rect: Rect,
+    /// Pictures opened lately, newest first, with their settings (saved only when `persist`).
+    pub recent: Recent,
+    /// Key in `recent` of the open picture; `None` for the sample or a dropped picture without a file.
+    pub picture_path: Option<std::path::PathBuf>,
 }
 
 impl App {
@@ -204,6 +209,8 @@ impl App {
             canvas_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             export_path_override: None,
             last_export_dir: None,
+            recent: if persist { recent::load() } else { Recent::default() },
+            picture_path: None,
         };
         app.select_medium(Medium::Watercolor);
         app.edit_palette = if app.store.palettes.is_empty() { None } else { Some(0) };
@@ -255,6 +262,9 @@ impl App {
     // ---------- image ----------
 
     pub fn set_image(&mut self, name: String, img: RgbImage) {
+        // keep the settings of the picture being closed
+        self.remember_settings();
+        self.picture_path = None;
         let work = imgproc::fit_working(&img);
         let analysis = imgproc::analyse(&work);
         self.img = Some(LoadedImage { name, original: img, crop: None, work, analysis });
@@ -333,10 +343,109 @@ impl App {
         match imgproc::load_path(path) {
             Ok(img) => {
                 let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                self.say(format!("Opened {name}"));
-                self.set_image(name, img);
+                self.set_image(name.clone(), img);
+                self.picture_path = self.recent.add(path);
+                let saved = self.picture_path.as_deref().and_then(|k| self.recent.settings(k)).cloned();
+                match saved {
+                    Some(s) => {
+                        self.apply_settings(&s);
+                        self.say(format!("Opened {name} with its settings from last time"));
+                    }
+                    None => self.say(format!("Opened {name}")),
+                }
+                self.save_recent();
             }
             Err(e) => self.say(format!("Could not open that picture: {e}")),
+        }
+    }
+
+    /// Menu of recently opened pictures, then "Clear recent list".
+    fn recent_menu_items(&self) -> Vec<String> {
+        if self.recent.pictures.is_empty() {
+            return vec!["No pictures opened yet".into()];
+        }
+        let mut items: Vec<String> = self.recent.shown().iter().map(|p| recent::menu_label(&p.path)).collect();
+        items.push("Clear recent list".into());
+        items
+    }
+
+    fn recent_menu_pick(&mut self, i: usize) {
+        let shown = self.recent.shown().len();
+        if let Some(path) = self.recent.shown().get(i).map(|p| p.path.clone()) {
+            if path.is_file() {
+                self.open_path(&path);
+            } else {
+                self.say(format!("{} is not there any more (moved, deleted or on a drive that is not connected)", path.display()));
+            }
+        } else if i == shown && i > 0 {
+            self.recent.clear();
+            self.save_recent();
+            self.say("Recent list and saved picture settings cleared");
+        }
+    }
+
+    /// Settings of the open picture, as kept in the recent list.
+    pub fn picture_settings(&self) -> Option<PictureSettings> {
+        let img = self.img.as_ref()?;
+        Some(PictureSettings {
+            crop: img.crop.map(|(x, y, w, h)| [x, y, w, h]),
+            view: self.view,
+            value_levels: self.value_levels,
+            colour_levels: self.colour_levels,
+            contour_detail: self.contour_detail,
+            contours_on_top: self.contours_on_top,
+            overlay: self.overlay,
+            medium: self.medium,
+            palette: self.current_palette().map(|p| p.name.clone()).unwrap_or_default(),
+            max_paints: self.max_paints,
+            allow_lighten: self.allow_lighten,
+            picked: self.picked.as_ref().map(|p| [p.pos.x, p.pos.y]),
+        })
+    }
+
+    /// Stores the open picture's settings in the recent list (and saves it) if they changed.
+    fn remember_settings(&mut self) {
+        let (Some(key), Some(s)) = (self.picture_path.clone(), self.picture_settings()) else { return };
+        if self.recent.set_settings(&key, s) {
+            self.save_recent();
+        }
+    }
+
+    /// Restores a picture's settings right after it was opened. Values out of range are
+    /// clamped, and a crop that no longer fits the picture (file changed) is dropped.
+    fn apply_settings(&mut self, s: &PictureSettings) {
+        if let (Some(img), Some([x, y, w, h])) = (&mut self.img, s.crop) {
+            let (ow, oh) = img.original.dimensions();
+            if w >= 8 && h >= 8 && x.saturating_add(w) <= ow && y.saturating_add(h) <= oh {
+                img.crop = Some((x, y, w, h));
+                img.work = imgproc::fit_working(&imgproc::crop(&img.original, (x, y, w, h)));
+                img.analysis = imgproc::analyse(&img.work);
+            }
+        }
+        self.view = s.view;
+        self.value_levels = s.value_levels.clamp(2, 10);
+        self.colour_levels = s.colour_levels.clamp(2, 24);
+        self.contour_detail = s.contour_detail.clamp(imgproc::CONTOUR_DETAIL_MIN, imgproc::CONTOUR_DETAIL_MAX);
+        self.contours_on_top = s.contours_on_top;
+        self.overlay = s.overlay;
+        self.overlay.cells = self.overlay.cells.clamp(2, 20);
+        self.overlay.colour = self.overlay.colour.min(crate::grid::LINE_COLOURS.len() - 1);
+        self.overlay.opacity = self.overlay.opacity.clamp(0.15, 1.0);
+        self.max_paints = s.max_paints.clamp(1, 3);
+        self.allow_lighten = s.allow_lighten;
+        self.palette_idx = self.store.palettes.iter().position(|p| p.medium == s.medium && p.name == s.palette);
+        self.select_medium(s.medium);
+        self.image_changed();
+        if let Some([x, y]) = s.picked {
+            self.pick_at(vec2(x.clamp(0.0, 1.0), y.clamp(0.0, 1.0)));
+        }
+    }
+
+    fn save_recent(&mut self) {
+        if self.persist {
+            if let Err(e) = recent::save(&self.recent) {
+                self.say(format!("Could not save the recent pictures list: {e}"));
+            }
         }
     }
 
@@ -467,6 +576,10 @@ impl App {
         self.top_bar(ui);
         ui.end();
         self.save_if_needed();
+        // A finished change (no button held, e.g. mid slider drag) is kept for this picture.
+        if !ui.input.down {
+            self.remember_settings();
+        }
     }
 
     fn top_bar(&mut self, ui: &mut Ui) {
@@ -525,6 +638,17 @@ fn match_colour(de: f32) -> Color {
     }
 }
 
+/// The match words with their dE range and what they mean for the painter, best first
+/// (explained in the app's pop-up and in the PDF legend).
+fn match_bands() -> [(&'static str, String, &'static str); 4] {
+    [
+        ("excellent", format!("below {MATCH_EXCELLENT}"), "hard to tell apart"),
+        ("good", format!("{MATCH_EXCELLENT} to {MATCH_GOOD}"), "small difference, seen side by side"),
+        ("close", format!("{MATCH_GOOD} to {MATCH_CLOSE}"), "clearly different; adjust the mix by eye"),
+        ("rough", format!("{MATCH_CLOSE} or more"), "your paints cannot reach this colour well"),
+    ]
+}
+
 /// Hover help for the match word and its dE number; the band of this recipe is highlighted.
 fn match_tip(de: f32) -> Vec<(String, Color)> {
     let here = match_label(de);
@@ -536,13 +660,7 @@ fn match_tip(de: f32) -> Vec<(String, Color)> {
         ("most people can see side by side. Smaller is better.".into(), MUTED),
         (String::new(), MUTED),
     ];
-    let bands = [
-        ("excellent", format!("below {MATCH_EXCELLENT}"), "hard to tell apart", GOOD),
-        ("good", format!("{MATCH_EXCELLENT} to {MATCH_GOOD}"), "small difference, seen side by side", GOOD),
-        ("close", format!("{MATCH_GOOD} to {MATCH_CLOSE}"), "clearly different; adjust the mix by eye", WARN),
-        ("rough", format!("{MATCH_CLOSE} or more"), "your paints cannot reach this colour well", BAD),
-    ];
-    for (word, range, meaning, band_colour) in bands {
+    for ((word, range, meaning), band_colour) in match_bands().into_iter().zip([GOOD, GOOD, WARN, BAD]) {
         let colour = if word == here { band_colour } else { MUTED };
         lines.push((format!("{word}\t{range}\t{meaning}"), colour));
     }

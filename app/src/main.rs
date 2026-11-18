@@ -11,6 +11,7 @@ mod imgproc;
 mod km;
 mod palette;
 mod pdf;
+mod recent;
 mod selftest;
 mod ui;
 
@@ -134,6 +135,11 @@ async fn run(args: Args) {
     if test.is_some() {
         // The self-test presses "Export PDF"; save to a temporary file instead of asking.
         app.export_path_override = Some(std::env::temp_dir().join("painting-colour-assistant-selftest.pdf"));
+        // A picture in the recent list (kept in memory only), for the "open recent" step.
+        let recent_pic = std::env::temp_dir().join(selftest::RECENT_PICTURE);
+        if imgproc::sample_landscape(600, 400).save(&recent_pic).is_ok() {
+            app.recent.add(&recent_pic);
+        }
     }
     let mut frames = 0u32;
     loop {

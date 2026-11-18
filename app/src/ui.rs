@@ -52,10 +52,13 @@ impl Input {
     }
 }
 
+/// Open list of choices. An item may hold a tab: the text after it is shown muted, as a note.
 pub struct Popup {
     pub id: String,
     pub anchor: Rect,
     pub items: Vec<String>,
+    /// Width that fits the items (at least the anchor's).
+    pub w: f32,
 }
 
 /// Help box shown while the mouse is over `anchor`; drawn on top of everything in `end()`.
@@ -132,7 +135,17 @@ impl Ui {
                         chosen = Some(i);
                     }
                 }
-                self.text(item, ir.x + 10.0, ir.y + 19.0, 15.0, TEXT);
+                let max_w = ir.w - 20.0;
+                match item.split_once('\t') {
+                    Some((main, note)) => {
+                        let mw = self.measure(main, 15.0).min(max_w);
+                        self.text_fit(main, ir.x + 10.0, ir.y + 19.0, 15.0, TEXT, max_w);
+                        if max_w - mw > 40.0 {
+                            self.text_fit(note, ir.x + 10.0 + mw + 12.0, ir.y + 19.0, 13.0, MUTED, max_w - mw - 12.0);
+                        }
+                    }
+                    None => self.text_fit(item, ir.x + 10.0, ir.y + 19.0, 15.0, TEXT, max_w),
+                }
             }
             if self.input.pressed {
                 if let Some(i) = chosen {
@@ -199,7 +212,7 @@ impl Ui {
     /// Registers `anchor` under `id`, and `id` as on-screen information while the box is shown.
     pub fn tooltip(&mut self, id: &str, anchor: Rect, lines: impl FnOnce() -> Vec<(String, Color)>) {
         self.mark(id, anchor);
-        if self.hovered(anchor) && self.active.is_none() {
+        if self.hovered(anchor) && self.active.is_none() && self.popup.is_none() {
             self.tooltip = Some(Tooltip { anchor, lines: lines() });
             self.hud(id);
         }
@@ -394,14 +407,38 @@ impl Ui {
         rrect(r, 5.0, if hov { PANEL3 } else { PANEL2 });
         rrect_lines(r, 5.0, BORDER);
         self.text_fit(label, r.x + 10.0, r.y + r.h / 2.0 + 5.0, 15.0, TEXT, r.w - 34.0);
-        let cx = r.x + r.w - 16.0;
-        let cy = r.y + r.h / 2.0;
-        draw_triangle(vec2(cx - 5.0, cy - 2.5), vec2(cx + 5.0, cy - 2.5), vec2(cx, cy + 3.5), MUTED);
-        if self.clicked(r) && !items.is_empty() {
-            self.popup = Some(Popup { id: id.to_string(), anchor: r, items: items.to_vec() });
-            // Do not let this same press close the popup again in end().
-            self.swallow = true;
-            self.input.pressed = false;
+        down_arrow(r.x + r.w - 16.0, r.y + r.h / 2.0);
+        self.popup_on_click(id, r, r, || items.to_vec())
+    }
+
+    /// Small arrow button that opens a menu under `anchor`; returns the picked index once chosen.
+    /// `items` is only built when the menu opens.
+    pub fn menu_button(&mut self, id: &str, r: Rect, anchor: Rect, items: impl FnOnce() -> Vec<String>) -> Option<usize> {
+        self.mark(id, r);
+        let open = self.popup.as_ref().is_some_and(|p| p.id == id);
+        rrect(r, 5.0, if self.hovered(r) || open { PANEL3 } else { PANEL2 });
+        down_arrow(r.x + r.w / 2.0, r.y + r.h / 2.0);
+        self.popup_on_click(id, r, anchor, items)
+    }
+
+    /// Opens the popup `id` when `r` is clicked; returns the item picked from it, once.
+    fn popup_on_click(&mut self, id: &str, r: Rect, anchor: Rect, items: impl FnOnce() -> Vec<String>) -> Option<usize> {
+        if self.clicked(r) {
+            let items = items();
+            if !items.is_empty() {
+                let widest = items
+                    .iter()
+                    .map(|s| match s.split_once('\t') {
+                        Some((a, b)) => self.measure(a, 15.0) + 12.0 + self.measure(b, 13.0),
+                        None => self.measure(s, 15.0),
+                    })
+                    .fold(0.0, f32::max);
+                let w = (widest + 24.0).clamp(anchor.w.max(180.0), 520.0_f32.max(anchor.w));
+                self.popup = Some(Popup { id: id.to_string(), anchor, items, w });
+                // Do not let this same press close the popup again in end().
+                self.swallow = true;
+                self.input.pressed = false;
+            }
         }
         if let Some((pid, i)) = &self.popup_result {
             if pid == id {
@@ -421,7 +458,12 @@ fn popup_rect(p: &Popup) -> Rect {
     } else {
         p.anchor.y + p.anchor.h + 2.0
     };
-    Rect::new(p.anchor.x, y, p.anchor.w.max(180.0), h)
+    let x = p.anchor.x.min(screen_width() - p.w - 4.0).max(4.0);
+    Rect::new(x, y, p.w, h)
+}
+
+fn down_arrow(cx: f32, cy: f32) {
+    draw_triangle(vec2(cx - 5.0, cy - 2.5), vec2(cx + 5.0, cy - 2.5), vec2(cx, cy + 3.5), MUTED);
 }
 
 pub fn rrect(r: Rect, rad: f32, c: Color) {

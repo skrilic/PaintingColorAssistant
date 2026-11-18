@@ -1,8 +1,9 @@
 //! Composition overlays drawn over the picture: rule of thirds, Fibonacci spiral, square grid.
 
 use macroquad::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum Overlay {
     None,
     Thirds,
@@ -14,6 +15,7 @@ impl Overlay {
     pub const ALL: [Overlay; 4] = [Overlay::None, Overlay::Thirds, Overlay::Fibonacci, Overlay::Grid];
 }
 
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub struct OverlaySettings {
     pub kind: Overlay,
     pub cells: i32,

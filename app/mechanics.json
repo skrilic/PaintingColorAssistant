@@ -14,6 +14,32 @@
       "source": "request"
     },
     {
+      "name": "recently opened",
+      "group": "controls",
+      "value": "arrow button beside Open picture: recent pictures newest first, missing ones marked, Clear recent list",
+      "source": "request"
+    },
+    {
+      "name": "recent list length",
+      "group": "controls",
+      "value": 10,
+      "unit": "pictures",
+      "estimated": true
+    },
+    {
+      "name": "pictures with remembered settings",
+      "group": "controls",
+      "value": 100,
+      "unit": "pictures",
+      "estimated": true
+    },
+    {
+      "name": "settings per picture",
+      "group": "controls",
+      "value": "crop, view, value and colour levels, contours, overlay, paint type, palette, paints per mix, lightening, clicked spot",
+      "source": "request"
+    },
+    {
       "name": "pick colour",
       "group": "controls",
       "value": "left click on picture",
@@ -428,6 +454,12 @@
       "name": "export contents",
       "group": "export",
       "value": "original, value levels, contours, palette, colour mixes",
+      "source": "request"
+    },
+    {
+      "name": "export match legend",
+      "group": "export",
+      "value": "after the recipe list: meaning of dE and the four match words with their ranges",
       "source": "request"
     },
     {
