@@ -4,7 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Painting Colour Assistant</title>
-    <link rel="icon" type="image/png" href="icon-64.png">
+    <meta name="description" content="Value and colour studies, composition overlays and paint mixing recipes from a reference picture.">
+    <meta name="theme-color" content="#25262b">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Colour Assistant">
     <style>
         html, body {
             margin: 0;
@@ -89,6 +96,12 @@
     <div id="loading">Loading Painting Colour Assistant&hellip;</div>
     <script src="gl.js"></script>
     <script src="pca.js"></script>
-    <script>load("painting_color_assistant.wasm");</script>
+    <script>
+        load("painting_color_assistant.wasm");
+        // Installable, and works without a network connection once opened (sw.js).
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+        }
+    </script>
 </body>
 </html>

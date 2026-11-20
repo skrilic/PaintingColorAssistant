@@ -1,3 +1,11 @@
+## Web app (phones, tablets, any browser)
+
+Open **https://skrilic.github.io/PaintingColorAssistant/** – no download needed. To install it:
+on iPhone and iPad tap *Share → Add to Home Screen* in Safari; on Android tap
+*Install app* (or *⋮ → Add to Home screen*) in Chrome; in Chrome or Edge on a computer use
+the install icon in the address bar. Once opened it also works without a network
+connection. Palettes are kept in the browser, separately from the desktop app.
+
 ## Downloads
 
 | System | File |
@@ -23,4 +31,5 @@ notarised, so the first launch is blocked: open it once, then go to
 **Windows** – unzip and run *Painting Colour Assistant.exe*. The app is not signed, so
 SmartScreen may warn: click *More info → Run anyway*.
 
-Palettes are saved in your user settings folder and survive updates.
+Palettes are saved in your user settings folder and survive updates (the web app keeps
+its own, in the browser).

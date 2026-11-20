@@ -189,6 +189,11 @@
     function on_init() {
         const loading = document.getElementById("loading");
         if (loading) loading.remove();
+        // Installed as an app: ask the browser not to clear the saved palettes when it
+        // runs short of space (some browsers would ask the user on a plain web page).
+        if (window.matchMedia("(display-mode: standalone)").matches && navigator.storage && navigator.storage.persist) {
+            navigator.storage.persist();
+        }
     }
 
     miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 2 });

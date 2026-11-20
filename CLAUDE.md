@@ -39,6 +39,11 @@ python3 -m http.server -d target/web 8080     # serve it locally
 - `.github/workflows/release.yml` builds on tag `v*` (Linux on ubuntu-22.04, universal
   macOS `.app` via `lipo` on macos-latest, Windows `.zip`) and publishes with `gh release create`.
   Tag must equal `app/Cargo.toml` version. Manual dispatch builds without publishing.
+- `.github/workflows/web.yml` builds the web app (`app/web/build.sh`) on tag `v*` and on
+  manual dispatch, and publishes it on GitHub Pages (Pages source: GitHub Actions).
+  Web app icons (`app/web/icons/`) come from `make_icons.py` (`--web-only` renders just
+  those; it falls back to `rsvg-convert` without Inkscape). `sw.js` lists every file it
+  caches: add new web files there too.
 - Packaging inputs live in `packaging/` (macOS `Info.plist` with `@VERSION@`, Linux
   `.desktop`, `release-notes.md` used as the release body).
 - App icon: edit SVGs in `packaging/icon/` (`icon.svg` ≥64 px, `icon-32.svg`, `icon-16.svg`

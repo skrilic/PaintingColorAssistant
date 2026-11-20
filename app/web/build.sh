@@ -4,14 +4,19 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-cargo build --release --target wasm32-unknown-unknown
+cargo build --release --locked --target wasm32-unknown-unknown
 
 out=target/web
 rm -rf "$out"
 mkdir -p "$out"
-cp web/index.html web/pca.js "$out/"
+cp web/index.html web/pca.js web/manifest.webmanifest "$out/"
+cp -R web/icons "$out/"
 # gl.js must come from the same miniquad as the build (the vendored copy).
 cp vendor/miniquad/js/gl.js "$out/"
-cp assets/icon-64.png "$out/"
 cp target/wasm32-unknown-unknown/release/painting_color_assistant.wasm "$out/"
+
+# The service worker's cache is named after a hash of everything it keeps, so a changed
+# build is picked up by installed copies of the app.
+build=$(cd "$out" && find . -type f | LC_ALL=C sort | xargs cat | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-12)
+sed "s/@BUILD@/$build/" web/sw.js > "$out/sw.js"
 echo "Web build in $(pwd)/$out"

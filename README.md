@@ -44,6 +44,10 @@ pictures with their settings to `recent.json` in the same folder.
 
 ## Download
 
+**Phones, tablets and any browser:** open the web app at
+<https://skrilic.github.io/PaintingColorAssistant/> and install it from the browser
+(Safari: *Share → Add to Home Screen*; Chrome: *Install app*). It works offline once opened.
+
 Ready-made builds for Linux, macOS and Windows are on the
 [Releases](https://github.com/skrilic/PaintingColorAssistant/releases) page, with
 installation notes for each system.
@@ -72,6 +76,11 @@ cd app
 ./web/build.sh                              # builds into target/web/
 python3 -m http.server -d target/web 8080   # then open http://localhost:8080
 ```
+
+The web build is an installable web app (PWA): `manifest.webmanifest` and icons in
+`app/web/`, and a service worker (`sw.js`) that keeps the app's files so it starts offline.
+Each build names its cache after a hash of the files, so installed copies update on their
+next start after a new version is published.
 
 In the browser, *Open picture...* uses the browser's file chooser (on phones and tablets:
 photos, camera or files), *Export PDF...* downloads the brochure, and palettes are kept in
