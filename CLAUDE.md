@@ -20,6 +20,7 @@ cargo run -- --self-test shots/selftest.json  # scripted end-to-end test
 cargo run -- --screenshot shots/now.png       # render sample landscape to PNG
 cargo run -- --palettes                       # open on the Palettes screen
 cargo run -- <image path>                     # open with a picture
+cargo run -- --screenshot x.png --window 390x780 --pane 2   # compact (phone) layout, pane 0-2
 ./web/build.sh                                # web build (wasm32) into target/web/
 python3 -m http.server -d target/web 8080     # serve it locally
 ```
@@ -27,7 +28,8 @@ python3 -m http.server -d target/web 8080     # serve it locally
 - The self-test always exits 0. Read the JSON: every step must have `"passed": true`.
 - `--screenshot` / `--self-test` open a real window and use `palette::default_store()`;
   they never read or write the user's `palettes.json` or `recent.json` (`App::persist` is false).
-- After UI changes, run both the self-test and a screenshot and look at the PNG.
+- After UI changes, run both the self-test and a screenshot and look at the PNG. Check the
+  compact layout too (`--window 390x780`, `--pane 0..2`, with and without `--palettes`).
 - The web build has no self-test or screenshot mode; check it in a browser. It needs
   `rustup target add wasm32-unknown-unknown`. Keep both `cargo build` and
   `cargo build --target wasm32-unknown-unknown` warning-free.
@@ -60,6 +62,14 @@ python3 -m http.server -d target/web 8080     # serve it locally
 - `ui.rs` – own immediate-mode widgets. Every widget registers its rect under a string id;
   `selftest.rs` clicks widgets by those ids. **Renaming a widget id breaks the self-test.**
   Popup items are `"<id>#<n>"`; `ui.tooltip` is drawn last in `Ui::end` (tabs = columns).
+  `ui.clicked` fires on release without dragging (a tap), so drags can scroll on touch
+  screens; use `ui.pressed_in` for things that are dragged (sliders, crop frame).
+  Scroll with `ui.scroll_rows` (row lists) or `ui.scroll_px` (whole panes), not the wheel alone.
+- Compact layout (`App::compact()`, window narrower than `COMPACT_W`): one pane at a time,
+  picked in the pane bar (`pane_painting` / `pane_palettes`). Panels lay out by their rect's
+  width, so the same panel functions serve both layouts; content scrolled under the bars is
+  covered by them and `ui.set_clip_top` keeps it from reacting. The self-test runs at
+  1400 x 880 only, so it does not cover the compact layout.
 - `selftest.rs` – queue of `Action`s (click, drag, type, wait, check) producing synthetic
   `Input` per frame; checks read `App` state directly.
 - `km.rs` – two-constant Kubelka-Munk per linear RGB channel. Watercolor = film over paper
@@ -77,7 +87,11 @@ python3 -m http.server -d target/web 8080     # serve it locally
   the desktop, `localStorage` keys `PaintingColorAssistant/<name>` on the web.
 - Web build (`target_arch = "wasm32"`): `web.rs` declares JS imports implemented in
   `web/pca.js`, a miniquad plugin loaded after the vendored `gl.js` (open picture via
-  `<input type=file>`, PDF as a download, local storage). `rfd` and `dirs` are desktop-only
+  `<input type=file>`, PDF as a download, local storage, and a see-through `<input>` laid over
+  each visible text field so phones show their keyboard; `Ui::text_field` reports its rect
+  every frame and `Ui::end` hides the inputs of fields not drawn). When the browser no
+  longer counts an action as the user's (`navigator.userActivation`), pca.js shows a small
+  sheet with a real button for one more tap. `rfd` and `dirs` are desktop-only
   dependencies; code using them is `cfg`-gated. Don't use `std::time::{Instant, SystemTime}`
   (they panic in wasm); use `miniquad::date::now()`. The web build embeds
   `assets/fonts/DejaVuSans.ttf`. Bump `PLUGIN_VERSION` in `web.rs` together with `version`
@@ -103,3 +117,5 @@ Local changes vs upstream 0.4.11 (keep this list current when touching `vendor/`
 2. `src/lib.rs`: `set_or_replace_display` is `#[cfg(target_os = "android")]` (dead code elsewhere).
 3. `src/native/linux_x11/clipboard.rs`: `MESSAGE` is a `Mutex<Option<String>>` instead of
    `static mut` (fixes the `static_mut_refs` warning).
+4. `src/native/wasm.rs`: the `resize` export re-reads `dpi_scale()` (browser zoom or a move
+   to another screen changes `devicePixelRatio`; upstream keeps the value from start-up).

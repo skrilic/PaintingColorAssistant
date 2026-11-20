@@ -77,6 +77,13 @@ In the browser, *Open picture...* uses the browser's file chooser (on phones and
 photos, camera or files), *Export PDF...* downloads the brochure, and palettes are kept in
 the browser's local storage. The recently opened list is not available there yet.
 
+On a narrow screen (a phone, or a tablet held upright) the app shows one pane at a time,
+chosen in a bar under the top bar: *Picture*, *Adjust* and *Recipes* on the Painting
+screen, *Palettes*, *Paints* and *Edit & library* on the Palettes screen. Tap the picture
+to get a recipe for that spot; it appears under the picture. Drag lists and panes to
+scroll them, and tap a match rating (e.g. *good*) to see what it means. The desktop app
+switches to the same layout when its window is made narrower than 900 pixels.
+
 No system development packages are needed to build on Linux:
 [miniquad](https://github.com/not-fl3/miniquad) loads libX11/libXi/libGL (or the Wayland
 and EGL libraries) at runtime, and any desktop install already has them.
@@ -91,6 +98,8 @@ BMP and TIFF.
 |---|---|
 | `<path>` | Open this picture on start |
 | `--palettes` | Start on the Palettes screen |
+| `--window <W>x<H>` | Window size, e.g. `390x780` to see the phone layout |
+| `--pane <0-2>` | In the phone layout, which pane to show (for screenshots) |
 | `--screenshot <file.png>` | Render the Painting screen with a built-in sample landscape, save a PNG and exit |
 | `--self-test <file.json>` | Drive the app with scripted input, write step results as JSON and exit |
 

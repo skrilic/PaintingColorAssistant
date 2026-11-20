@@ -16,12 +16,13 @@ in `mechanics.json`.
 | Settings per picture | crop, view, value levels, colour levels, contour detail, lines on top, overlay (kind, grid cells, diagonals, mirroring, line colour and strength), paint type, palette (by name; first palette of that paint type if it is gone), paints per mix, lightening, clicked spot; restored whenever that picture is opened again from a file. New pictures start with the current settings and no crop | request |
 | Settings saved | after every finished change (no mouse button held) and when another picture is opened; "Clear recent list" forgets the settings too | estimated |
 | Recent list saved | JSON next to the palettes (`PaintingColorAssistant/recent.json`); `--screenshot` / `--self-test` never read or write it | estimated |
-| Pick a colour | left click on the picture (Original / Greyscale / Value views) gives a recipe for a 5x5 px average | estimated |
+| Buttons, list rows, menus | react on release (tap); a press that moves more than 10 px before release is a drag, not a tap (so dragging a list on a touch screen does not press what is under the finger). Sliders and the crop frame react on press | estimated |
+| Pick a colour | click or tap on the picture (Original / Greyscale / Value views) gives a recipe for a 5x5 px average | estimated |
 | Select a colour level | left click on the picture or a recipe row (Colour levels view) fades the other levels | estimated |
 | Crop | "Crop..." then drag: outside the frame = new frame, inside = move, corner handle (12 px) = resize; "Apply crop", "Undo crop" | request |
 | Crop shapes | Free, 1:1, 4:5, 3:4, 2:3, 5:4, 4:3, 3:2, 16:9 | estimated |
-| Scroll lists | mouse wheel, 1 row per notch (library: 2 rows) | estimated |
-| Text fields | click to type, Backspace deletes, Enter/Escape/click elsewhere finishes | estimated |
+| Scroll lists | mouse wheel, 1 row per notch (library: 2 rows), or drag the list (one row per row height dragged) | estimated |
+| Text fields | click to type, Backspace deletes, Enter/Escape/click elsewhere finishes; in the web build a browser input lies over the field, so phones and tablets show their keyboard | estimated |
 | Delete palette | needs a second click ("Click again") | estimated |
 | Palettes saved | automatically after every change, JSON in the user settings folder (`PaintingColorAssistant/palettes.json`) | estimated |
 
@@ -102,6 +103,9 @@ its masstone colour (full strength), its transparency and its tinting strength.
 |---|---|---|
 | Window | 1400 x 880, resizable | estimated |
 | Left panel / right panel | 250 px / 430 px | estimated |
+| Compact layout | below 900 px window width (phones, tablets held upright): one pane at a time, chosen in a 44 px pane bar under the top bar (Painting: Picture, Adjust, Recipes; Palettes: Palettes, Paints, Edit & library); panes taller than the window scroll by dragging or the wheel | request: "tablets and smartphones as important as desktop"; values estimated |
+| Compact Picture pane | picture buttons, the picture, the value or colour strip, then a 104 px card with the clicked spot's recipe (or the selected colour level's, in the Colour levels view); no card when the pane is less than 480 px high (phone held sideways) | estimated |
+| Recipe row height | 66 px; 84 px on a panel narrower than 380 px, where the paints may take two lines | estimated |
 
 ## Export PDF (reference brochure)
 

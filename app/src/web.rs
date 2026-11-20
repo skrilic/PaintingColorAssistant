@@ -2,7 +2,7 @@
 //! keeping data, implemented in `web/pca.js` (a miniquad plugin).
 
 /// Must equal `version` in web/pca.js; miniquad logs a mismatch in the console.
-const PLUGIN_VERSION: u32 = 1;
+const PLUGIN_VERSION: u32 = 2;
 
 #[link(wasm_import_module = "env")]
 unsafe extern "C" {
@@ -14,6 +14,21 @@ unsafe extern "C" {
     fn pca_storage_len(key: *const u8, key_len: usize) -> i32;
     fn pca_storage_get(key: *const u8, key_len: usize, out: *mut u8);
     fn pca_storage_set(key: *const u8, key_len: usize, value: *const u8, value_len: usize) -> i32;
+    #[allow(clippy::too_many_arguments)]
+    fn pca_text_field(
+        id: *const u8,
+        id_len: usize,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        value: *const u8,
+        value_len: usize,
+        placeholder: *const u8,
+        placeholder_len: usize,
+    ) -> i32;
+    fn pca_text_field_take(out: *mut u8);
+    fn pca_text_fields_end();
 }
 
 /// Read by miniquad's plugin loader to check that web/pca.js matches this build.
@@ -61,4 +76,25 @@ pub fn storage_set(key: &str, value: &str) -> Result<(), String> {
         1 => Ok(()),
         _ => Err("the browser refused to store it (storage full or turned off)".into()),
     }
+}
+
+/// Places the browser's input for text field `id` over `r` (logical px = CSS px) and shows
+/// `value` in it. Returns whether it has the keyboard focus, and the text typed since the
+/// last frame, if any.
+pub fn text_field(id: &str, r: macroquad::math::Rect, value: &str, placeholder: &str) -> (bool, Option<String>) {
+    let code = unsafe {
+        pca_text_field(id.as_ptr(), id.len(), r.x, r.y, r.w, r.h, value.as_ptr(), value.len(), placeholder.as_ptr(), placeholder.len())
+    };
+    let focused = code & 1 == 1;
+    let typed = (code >= 2).then(|| {
+        let mut out = vec![0u8; (code >> 1) as usize - 1];
+        unsafe { pca_text_field_take(out.as_mut_ptr()) };
+        String::from_utf8_lossy(&out).into_owned()
+    });
+    (focused, typed)
+}
+
+/// End of a frame: hides the inputs of text fields that were not drawn in it.
+pub fn text_fields_end() {
+    unsafe { pca_text_fields_end() }
 }

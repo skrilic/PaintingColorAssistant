@@ -9,6 +9,26 @@ use crate::ui::{ACCENT, ACCENT_DIM, PANEL2, rrect, swatch};
 impl App {
     pub(super) fn palettes(&mut self, ui: &mut Ui) {
         let (w, h) = (screen_width(), screen_height());
+        if Self::compact() {
+            let top = Self::content_top();
+            let area = Rect::new(0.0, top, w, h - top);
+            match self.pane_palettes {
+                0 => {
+                    draw_rectangle(area.x, area.y, area.w, area.h, PANEL);
+                    let r = Rect::new(0.0, area.y - self.pane_scroll, w, area.h + self.pane_scroll);
+                    let end = self.palette_list(ui, r);
+                    let mut scroll = self.pane_scroll;
+                    ui.scroll_px(area, &mut scroll, end + 24.0 - r.y - area.h);
+                    self.pane_scroll = scroll;
+                }
+                1 => self.paint_list(ui, area),
+                _ => {
+                    draw_rectangle(area.x, area.y, area.w, area.h, PANEL);
+                    self.paint_editor(ui, area);
+                }
+            }
+            return;
+        }
         let c1 = Rect::new(0.0, TOP_BAR, 290.0, h - TOP_BAR);
         let c3w = 380.0f32.min(w * 0.3);
         let c2 = Rect::new(c1.w, TOP_BAR, (w - c1.w - c3w).max(300.0), h - TOP_BAR);
@@ -22,7 +42,8 @@ impl App {
         self.paint_editor(ui, c3);
     }
 
-    fn palette_list(&mut self, ui: &mut Ui, r: Rect) {
+    /// List of palettes and the selected palette's settings; returns the y where they end.
+    fn palette_list(&mut self, ui: &mut Ui, r: Rect) -> f32 {
         let x = r.x + 16.0;
         let bw = r.w - 32.0;
         let mut y = r.y + 22.0;
@@ -70,7 +91,7 @@ impl App {
             }
         }
         y += 44.0;
-        let Some(pi) = self.edit_palette.filter(|&i| i < self.store.palettes.len()) else { return };
+        let Some(pi) = self.edit_palette.filter(|&i| i < self.store.palettes.len()) else { return y };
         draw_line(x, y, x + bw, y, 1.0, BORDER);
         y += 22.0;
         ui.header("SELECTED PALETTE", x, y);
@@ -129,6 +150,7 @@ impl App {
         } else if ui.input.pressed {
             self.confirm_delete = false;
         }
+        y + 28.0
     }
 
     fn paint_list(&mut self, ui: &mut Ui, r: Rect) {
@@ -148,14 +170,8 @@ impl App {
         let list_h = (r.h * 0.42).max(200.0);
         let visible = (list_h / 40.0).floor() as usize;
         let list = Rect::new(x, y, bw, visible as f32 * 40.0);
-        if ui.hovered(list) && ui.input.wheel != 0.0 {
-            if ui.input.wheel < 0.0 {
-                self.paint_scroll += 1;
-            } else {
-                self.paint_scroll = self.paint_scroll.saturating_sub(1);
-            }
-        }
-        self.paint_scroll = self.paint_scroll.min(n.saturating_sub(visible));
+        let rows = ui.scroll_rows(list, 40.0, 1);
+        self.paint_scroll = self.paint_scroll.saturating_add_signed(rows).min(n.saturating_sub(visible));
         let mut pick = None;
         for i in (self.paint_scroll..n).take(visible) {
             let p = &self.store.palettes[pi].paints[i];
@@ -168,7 +184,7 @@ impl App {
             transparency_mark(rr.x + 22.0, rr.y + 18.0, p.transparency);
             ui.text_fit(&p.name, rr.x + 46.0, rr.y + 23.0, 16.0, TEXT, bw * 0.42);
             ui.text_fit(&p.pigment, rr.x + 46.0 + bw * 0.45, rr.y + 23.0, 15.0, ACCENT, bw * 0.22);
-            let tl = p.transparency.label();
+            let tl = if bw < 520.0 { p.transparency.short() } else { p.transparency.label() };
             ui.text(tl, rr.x + rr.w - ui.measure(tl, 14.0) - 12.0, rr.y + 23.0, 14.0, MUTED);
             if ui.clicked(rr) {
                 pick = Some(i);
@@ -176,15 +192,24 @@ impl App {
             y += 40.0;
         }
         if n == 0 {
-            ui.text("No paints yet: pick some from the pigment library on the right,", x, y + 20.0, 15.0, MUTED);
-            ui.text("or add a blank paint and type its name and pigment code.", x, y + 40.0, 15.0, MUTED);
+            let lines: &[&str] = if Self::compact() {
+                &["No paints yet: add some under \"Edit & library\",", "or add a blank paint and fill it in there."]
+            } else {
+                &["No paints yet: pick some from the pigment library on the right,", "or add a blank paint and type its name and pigment code."]
+            };
+            for (k, l) in lines.iter().enumerate() {
+                ui.text_fit(l, x, y + 20.0 + 20.0 * k as f32, 15.0, MUTED, bw);
+            }
         }
         if let Some(i) = pick {
             self.select_paint(Some(i));
         }
         let mut y = list.y + list.h + 6.0;
         let b4 = (bw - 18.0) / 4.0;
-        if ui.button("add_paint", Rect::new(x, y, b4, 28.0), "+ Blank paint") {
+        // short labels when the buttons are narrow (phones)
+        let [add_l, remove_l, up_l, down_l] =
+            if b4 < 110.0 { ["+ Blank", "Remove", "Up", "Down"] } else { ["+ Blank paint", "Remove", "Move up", "Move down"] };
+        if ui.button("add_paint", Rect::new(x, y, b4, 28.0), add_l) {
             let pal = &mut self.store.palettes[pi];
             pal.paints.push(Paint {
                 name: "New paint".into(),
@@ -199,21 +224,21 @@ impl App {
             self.palettes_changed();
         }
         let sel = self.edit_paint.filter(|&i| i < n);
-        if ui.button("remove_paint", Rect::new(x + b4 + 6.0, y, b4, 28.0), "Remove") {
+        if ui.button("remove_paint", Rect::new(x + b4 + 6.0, y, b4, 28.0), remove_l) {
             if let Some(i) = sel {
                 self.store.palettes[pi].paints.remove(i);
                 self.select_paint(None);
                 self.palettes_changed();
             }
         }
-        if ui.button("paint_up", Rect::new(x + 2.0 * (b4 + 6.0), y, b4, 28.0), "Move up") {
+        if ui.button("paint_up", Rect::new(x + 2.0 * (b4 + 6.0), y, b4, 28.0), up_l) {
             if let Some(i) = sel.filter(|&i| i > 0) {
                 self.store.palettes[pi].paints.swap(i, i - 1);
                 self.select_paint(Some(i - 1));
                 self.palettes_changed();
             }
         }
-        if ui.button("paint_down", Rect::new(x + 3.0 * (b4 + 6.0), y, b4, 28.0), "Move down") {
+        if ui.button("paint_down", Rect::new(x + 3.0 * (b4 + 6.0), y, b4, 28.0), down_l) {
             if let Some(i) = sel.filter(|&i| i + 1 < n) {
                 self.store.palettes[pi].paints.swap(i, i + 1);
                 self.select_paint(Some(i + 1));
@@ -274,8 +299,9 @@ impl App {
             }
         }
         let ty = oy + grid_w + 22.0;
-        let text = tip.unwrap_or_else(|| "Point at a square to see which paints it mixes.".into());
-        ui.text(&text, ox, ty, 14.0, if text.starts_with("Point") { MUTED } else { TEXT });
+        let hint = if Self::compact() { "Tap a square to see which paints it mixes." } else { "Point at a square to see which paints it mixes." };
+        let text = tip.clone().unwrap_or_else(|| hint.into());
+        ui.text_fit(&text, ox, ty, 14.0, if tip.is_none() { MUTED } else { TEXT }, r.w);
     }
 
     fn paint_editor(&mut self, ui: &mut Ui, r: Rect) {
@@ -345,7 +371,7 @@ impl App {
         }
         draw_line(x, y, x + bw, y, 1.0, BORDER);
         y += 22.0;
-        ui.header("PIGMENT LIBRARY  (click one to add it)", x, y);
+        ui.header(if Self::compact() { "PIGMENT LIBRARY  (tap one to add it)" } else { "PIGMENT LIBRARY  (click one to add it)" }, x, y);
         y += 10.0;
         if ui.text_field("lib_search", Rect::new(x, y, bw, 30.0), &mut self.lib_search, "Search name or code, e.g. PB29") {
             self.lib_scroll = 0;
@@ -358,14 +384,8 @@ impl App {
         let row_h = 28.0;
         let visible = ((r.y + r.h - y - 8.0) / row_h).floor().max(1.0) as usize;
         let list = Rect::new(x, y, bw, visible as f32 * row_h);
-        if ui.hovered(list) && ui.input.wheel != 0.0 {
-            if ui.input.wheel < 0.0 {
-                self.lib_scroll += 2;
-            } else {
-                self.lib_scroll = self.lib_scroll.saturating_sub(2);
-            }
-        }
-        self.lib_scroll = self.lib_scroll.min(items.len().saturating_sub(visible));
+        let rows = ui.scroll_rows(list, row_h, 2);
+        self.lib_scroll = self.lib_scroll.saturating_add_signed(rows).min(items.len().saturating_sub(visible));
         let mut add = None;
         for (row, &li) in items.iter().skip(self.lib_scroll).take(visible).enumerate() {
             let lp = &LIBRARY[li];

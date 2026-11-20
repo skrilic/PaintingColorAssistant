@@ -19,8 +19,17 @@ pub const LEFT_W: f32 = 250.0;
 pub const RIGHT_W: f32 = 430.0;
 pub const BOTTOM_STRIP: f32 = 58.0;
 pub const RECIPE_ROW_H: f32 = 66.0;
+/// Recipe row on a narrow panel, where the paints may take two lines.
+pub const RECIPE_ROW_H_NARROW: f32 = 84.0;
 /// Time per frame spent on recipe search, so the window stays responsive.
 pub const RECIPE_BUDGET_MS: f64 = 12.0;
+/// Below this window width (logical px) the compact layout is used: one pane at a time,
+/// chosen in a bar under the top bar (phones, tablets held upright, narrow windows).
+pub const COMPACT_W: f32 = 900.0;
+/// Height of the compact layout's pane bar.
+pub const PANE_BAR: f32 = 44.0;
+/// Compact layout: height of the clicked-spot card under the picture.
+pub const PICKED_CARD_H: f32 = 104.0;
 
 pub const CROP_ASPECTS: [(&str, f32); 9] = [
     ("Free", 0.0),
@@ -150,6 +159,12 @@ pub struct App {
     pub recent: Recent,
     /// Key in `recent` of the open picture; `None` for the sample or a dropped picture without a file.
     pub picture_path: Option<std::path::PathBuf>,
+    /// Compact layout: pane shown on the Painting screen (Picture, Adjust, Recipes)...
+    pub pane_painting: usize,
+    /// ...and on the Palettes screen (Palettes, Paints, Edit & library).
+    pub pane_palettes: usize,
+    /// Compact layout: how far the current pane is scrolled (px).
+    pane_scroll: f32,
 }
 
 impl App {
@@ -210,6 +225,9 @@ impl App {
             last_export_dir: None,
             recent: if persist { recent::load() } else { Recent::default() },
             picture_path: None,
+            pane_painting: 0,
+            pane_palettes: 0,
+            pane_scroll: 0.0,
         };
         app.select_medium(Medium::Watercolor);
         app.edit_palette = if app.store.palettes.is_empty() { None } else { Some(0) };
@@ -575,14 +593,33 @@ impl App {
 
     // ---------- frame ----------
 
+    /// The window is too narrow for the side-by-side panels (see `COMPACT_W`).
+    pub fn compact() -> bool {
+        screen_width() < COMPACT_W
+    }
+
+    /// Top of the screen's content: under the top bar, and the pane bar when compact.
+    fn content_top() -> f32 {
+        if Self::compact() { TOP_BAR + PANE_BAR } else { TOP_BAR }
+    }
+
     pub fn frame(&mut self, ui: &mut Ui) {
         clear_background(BG);
         self.update_derived();
+        // Content scrolled up under the bars is covered by them and must not react.
+        ui.set_clip_top(Self::content_top());
         match self.screen {
             Screen::Painting => self.painting(ui),
             Screen::Palettes => self.palettes(ui),
         }
+        ui.set_clip_top(0.0);
+        if Self::compact() {
+            self.pane_bar(ui);
+        }
         self.top_bar(ui);
+        if Self::compact() {
+            self.toast(ui);
+        }
         ui.end();
         self.save_if_needed();
         // A finished change (no button held, e.g. mid slider drag) is kept for this picture.
@@ -598,6 +635,24 @@ impl App {
         // a tiny palette logo drawn from circles
         for (i, c) in [[200u8, 50, 60], [240, 170, 40], [40, 90, 170]].iter().enumerate() {
             draw_circle(22.0 + i as f32 * 9.0, 26.0 + if i == 1 { -5.0 } else { 2.0 }, 7.0, col(*c));
+        }
+        if Self::compact() {
+            // no title; screens and "PDF" share the width
+            let export = Rect::new(w - 72.0, 10.0, 62.0, 32.0);
+            let tab_w = ((export.x - 58.0 - 12.0) / 2.0).min(125.0);
+            let tab = |i: f32| Rect::new(50.0 + i * (tab_w + 6.0), 10.0, tab_w, 32.0);
+            if ui.button_ex("tab_palettes", tab(0.0), "Palettes", self.screen == Screen::Palettes) {
+                self.screen = Screen::Palettes;
+                self.pane_scroll = 0.0;
+            }
+            if ui.button_ex("tab_painting", tab(1.0), "Painting", self.screen == Screen::Painting) {
+                self.screen = Screen::Painting;
+                self.pane_scroll = 0.0;
+            }
+            if ui.button("export_pdf", export, "PDF") {
+                self.export_pdf();
+            }
+            return;
         }
         ui.text("Painting Colour Assistant", 50.0, 32.0, 18.0, TEXT);
         let tabs = Rect::new(LEFT_W + 20.0, 10.0, 260.0, 32.0);
@@ -615,6 +670,35 @@ impl App {
             let sw = ui.measure(&self.status, 15.0);
             ui.text(&self.status, (export.x - sw - 16.0).max(tabs.x + 280.0), 32.0, 15.0, ui::ACCENT);
         }
+    }
+
+    /// Compact layout: the panes of the current screen, one shown at a time.
+    fn pane_bar(&mut self, ui: &mut Ui) {
+        let w = screen_width();
+        draw_rectangle(0.0, TOP_BAR, w, PANE_BAR, PANEL);
+        draw_line(0.0, TOP_BAR + PANE_BAR, w, TOP_BAR + PANE_BAR, 1.0, BORDER);
+        let (labels, current) = match self.screen {
+            Screen::Painting => (["Picture", "Adjust", "Recipes"], &mut self.pane_painting),
+            Screen::Palettes => (["Palettes", "Paints", "Edit & library"], &mut self.pane_palettes),
+        };
+        if let Some(i) = ui.segmented("pane", Rect::new(8.0, TOP_BAR + 6.0, w - 13.0, PANE_BAR - 12.0), &labels, *current) {
+            *current = i;
+            self.pane_scroll = 0.0;
+        }
+    }
+
+    /// Compact layout: the status message, at the bottom (no room for it in the top bar).
+    fn toast(&self, ui: &Ui) {
+        if get_time() >= self.status_until || self.status.is_empty() {
+            return;
+        }
+        let (w, h) = (screen_width(), screen_height());
+        let tw = (ui.measure(&self.status, 15.0) + 24.0).min(w - 16.0);
+        let r = Rect::new((w - tw) / 2.0, h - 54.0, tw, 34.0);
+        draw_rectangle(r.x + 2.0, r.y + 3.0, r.w, r.h, Color::new(0.0, 0.0, 0.0, 0.35));
+        crate::ui::rrect(r, 8.0, BG);
+        crate::ui::rrect_lines(r, 8.0, ui::ACCENT);
+        ui.text_fit(&self.status, r.x + 12.0, r.y + 22.0, 15.0, TEXT, r.w - 24.0);
     }
 }
 
@@ -677,6 +761,40 @@ fn match_tip(de: f32) -> Vec<(String, Color)> {
     lines.push(("The mixed colour comes from a paint-mixing model (Kubelka-Munk);".into(), MUTED));
     lines.push(("real paints, paper and brushwork can shift it a little.".into(), MUTED));
     lines
+}
+
+/// Recipe for a narrow card: the paints and parts broken over up to two lines where they
+/// do not fit, then how much to lighten and how well it matches. Returns the lines used.
+fn recipe_text_wrapped(ui: &mut Ui, id: &str, m: &Mixer, rc: &Recipe, x: f32, y: f32, w: f32) -> usize {
+    let parts = m.describe_parts(rc);
+    let mut lines = vec![String::new()];
+    for (k, piece) in parts.split(" + ").enumerate() {
+        let n = lines.len();
+        let last = &mut lines[n - 1];
+        let joined = if k == 0 { piece.to_string() } else { format!("{last} + {piece}") };
+        if k > 0 && ui.measure(&joined, 15.0) > w && n < 2 {
+            last.push_str(" +");
+            lines.push(piece.to_string());
+        } else {
+            *last = joined;
+        }
+    }
+    for (k, l) in lines.iter().enumerate() {
+        ui.text_fit(l, x, y + 17.0 * k as f32, 15.0, TEXT, w);
+    }
+    let ly = y + 17.0 * lines.len() as f32;
+    let lighten = m.describe_lighten(rc);
+    // the dE number stays in the pop-up when the line is too short for it
+    let mut ml = format!("{}  (dE {:.1})", match_label(rc.de), rc.de);
+    if ui.measure(&lighten, 13.0) + ui.measure(&ml, 12.0) + 10.0 > w {
+        ml = match_label(rc.de).to_string();
+    }
+    let mw = ui.measure(&ml, 12.0);
+    ui.text_fit(&lighten, x, ly, 13.0, MUTED, w - mw - 10.0);
+    ui.text(&ml, x + w - mw, ly, 12.0, match_colour(rc.de));
+    let de = rc.de;
+    ui.tooltip(id, Rect::new(x + w - mw - 3.0, ly - 13.0, mw + 6.0, 17.0), || match_tip(de));
+    lines.len() + 1
 }
 
 /// Recipe in two lines: paints and parts, then how much to lighten and how well it matches.

@@ -17,6 +17,9 @@ pub const GOOD: Color = Color::new(0.45, 0.80, 0.52, 1.0);
 pub const WARN: Color = Color::new(0.95, 0.72, 0.35, 1.0);
 pub const BAD: Color = Color::new(0.93, 0.45, 0.42, 1.0);
 
+/// How far (px) the pointer may move between press and release and still count as a tap.
+pub const TAP_SLOP: f32 = 10.0;
+
 #[derive(Default, Clone, Debug)]
 pub struct Input {
     pub mouse: Vec2,
@@ -83,6 +86,18 @@ pub struct Ui {
     swallow: bool,
     block: Option<Rect>,
     pub time: f32,
+    /// Where the button or finger went down, while it is held.
+    press_at: Option<Vec2>,
+    /// The pointer moved more than `TAP_SLOP` since the press (a drag, not a tap).
+    dragged: bool,
+    /// Released this frame without dragging: buttons react to this, so dragging to scroll
+    /// a list on a touch screen does not press the buttons under the finger.
+    tap: bool,
+    tap_from: Vec2,
+    mouse_delta: Vec2,
+    row_drag: f32,
+    /// Nothing above this y reacts to the pointer (content scrolled under the top bars).
+    clip_top: f32,
 }
 
 impl Ui {
@@ -102,18 +117,43 @@ impl Ui {
             swallow: false,
             block: None,
             time: 0.0,
+            press_at: None,
+            dragged: false,
+            tap: false,
+            tap_from: Vec2::ZERO,
+            mouse_delta: Vec2::ZERO,
+            row_drag: 0.0,
+            clip_top: 0.0,
         }
     }
 
     pub fn begin(&mut self, input: Input, dt: f32) {
+        let prev_mouse = self.input.mouse;
         self.input = input;
+        self.mouse_delta = if self.input.pressed { Vec2::ZERO } else { self.input.mouse - prev_mouse };
+        if self.input.pressed {
+            self.press_at = Some(self.input.mouse);
+            self.dragged = false;
+            self.row_drag = 0.0;
+        }
+        if self.press_at.is_some_and(|p| p.distance(self.input.mouse) > TAP_SLOP) {
+            self.dragged = true;
+        }
+        self.tap = false;
+        if !self.input.down {
+            if let Some(p) = self.press_at.take() {
+                self.tap = !self.dragged;
+                self.tap_from = p;
+            }
+        }
+        self.clip_top = 0.0;
         self.time += dt;
         self.prev_rects = std::mem::take(&mut self.rects);
         self.prev_hud = std::mem::take(&mut self.hud);
         self.tooltip = None;
         self.block = self.popup.as_ref().map(|p| popup_rect(p));
-        // While a popup is open, a press goes to the popup only.
-        self.swallow = self.popup.is_some() && self.input.pressed;
+        // While a popup is open, a press or tap goes to the popup only.
+        self.swallow = self.popup.is_some() && (self.input.pressed || self.tap);
         if !self.input.down && !self.input.pressed {
             self.active = None;
         }
@@ -131,7 +171,7 @@ impl Ui {
                 self.rects.insert(format!("{}#{}", p.id, i), ir);
                 if ir.contains(self.input.mouse) {
                     draw_rectangle(ir.x + 2.0, ir.y, ir.w - 4.0, ir.h, PANEL3);
-                    if self.input.pressed {
+                    if self.tap {
                         chosen = Some(i);
                     }
                 }
@@ -147,7 +187,7 @@ impl Ui {
                     None => self.text_fit(item, ir.x + 10.0, ir.y + 19.0, 15.0, TEXT, max_w),
                 }
             }
-            if self.input.pressed {
+            if self.tap {
                 if let Some(i) = chosen {
                     self.popup_result = Some((p.id.clone(), i));
                 }
@@ -157,27 +197,48 @@ impl Ui {
         if let Some(t) = &self.tooltip {
             self.draw_tooltip(t);
         }
+        #[cfg(target_arch = "wasm32")]
+        crate::web::text_fields_end();
     }
 
     fn draw_tooltip(&self, t: &Tooltip) {
-        const SIZE: f32 = 14.0;
-        const LINE: f32 = 19.0;
-        const PAD: f32 = 10.0;
-        const GAP: f32 = 14.0;
+        // Shrunk to fit narrow screens (phones).
+        let sw = screen_width();
+        let full_w = self.tooltip_width(t, 14.0, 14.0) + 20.0;
+        let k = ((sw - 8.0) / full_w).clamp(0.6, 1.0);
+        let (size, line, pad, gap) = (14.0 * k, 19.0 * k, 10.0 * k, 14.0 * k);
+        self.draw_tooltip_sized(t, size, line, pad, gap);
+    }
+
+    /// Width of the tooltip's text: the widest line, with tab columns lined up.
+    fn tooltip_width(&self, t: &Tooltip, size: f32, gap: f32) -> f32 {
+        let rows: Vec<Vec<&str>> = t.lines.iter().map(|(s, _)| s.split('\t').collect()).collect();
+        let mut col_w: Vec<f32> = Vec::new();
+        for row in rows.iter().filter(|r| r.len() > 1) {
+            col_w.resize(col_w.len().max(row.len()), 0.0);
+            for (k, cell) in row.iter().enumerate() {
+                col_w[k] = col_w[k].max(self.measure(cell, size));
+            }
+        }
+        let table_w = col_w.iter().sum::<f32>() + gap * col_w.len().saturating_sub(1) as f32;
+        rows.iter().map(|r| if r.len() > 1 { table_w } else { self.measure(r[0], size) }).fold(0.0, f32::max)
+    }
+
+    fn draw_tooltip_sized(&self, t: &Tooltip, size: f32, line: f32, pad: f32, gap: f32) {
         let rows: Vec<Vec<&str>> = t.lines.iter().map(|(s, _)| s.split('\t').collect()).collect();
         // Columns line up across all lines that have tabs.
         let mut col_w: Vec<f32> = Vec::new();
         for row in rows.iter().filter(|r| r.len() > 1) {
             col_w.resize(col_w.len().max(row.len()), 0.0);
             for (k, cell) in row.iter().enumerate() {
-                col_w[k] = col_w[k].max(self.measure(cell, SIZE));
+                col_w[k] = col_w[k].max(self.measure(cell, size));
             }
         }
-        let table_w = col_w.iter().sum::<f32>() + GAP * col_w.len().saturating_sub(1) as f32;
-        let line_h = |row: &[&str]| if row.iter().all(|c| c.is_empty()) { LINE / 2.0 } else { LINE };
-        let content_w = rows.iter().map(|r| if r.len() > 1 { table_w } else { self.measure(r[0], SIZE) }).fold(0.0, f32::max);
-        let w = content_w + 2.0 * PAD;
-        let h = rows.iter().map(|r| line_h(r)).sum::<f32>() - LINE + SIZE + 2.0 * PAD;
+        let table_w = col_w.iter().sum::<f32>() + gap * col_w.len().saturating_sub(1) as f32;
+        let line_h = |row: &[&str]| if row.iter().all(|c| c.is_empty()) { line / 2.0 } else { line };
+        let content_w = rows.iter().map(|r| if r.len() > 1 { table_w } else { self.measure(r[0], size) }).fold(0.0, f32::max);
+        let w = content_w + 2.0 * pad;
+        let h = rows.iter().map(|r| line_h(r)).sum::<f32>() - line + size + 2.0 * pad;
         let (sw, sh) = (screen_width(), screen_height());
         let x = (t.anchor.x + t.anchor.w - w).clamp(4.0, (sw - w - 4.0).max(4.0));
         let mut y = t.anchor.y - h - 6.0;
@@ -188,12 +249,12 @@ impl Ui {
         draw_rectangle(r.x + 3.0, r.y + 4.0, r.w, r.h, Color::new(0.0, 0.0, 0.0, 0.35));
         rrect(r, 5.0, BG);
         rrect_lines(r, 5.0, BORDER);
-        let mut ty = r.y + PAD + 11.0;
+        let mut ty = r.y + pad + size * 0.8;
         for (row, (_, colour)) in rows.iter().zip(&t.lines) {
-            let mut tx = r.x + PAD;
+            let mut tx = r.x + pad;
             for (k, cell) in row.iter().enumerate() {
-                self.text(cell, tx, ty, SIZE, *colour);
-                tx += col_w.get(k).copied().unwrap_or(0.0) + GAP;
+                self.text(cell, tx, ty, size, *colour);
+                tx += col_w.get(k).copied().unwrap_or(0.0) + gap;
             }
             ty += line_h(row);
         }
@@ -223,13 +284,67 @@ impl Ui {
         self.tooltip.as_ref().map(|t| t.lines.iter().map(|(s, _)| s.as_str()).collect::<Vec<_>>().join("\n"))
     }
 
-    /// Mouse is over `r` and not covered by a popup.
+    /// Mouse is over `r` and not covered by a popup or the top bars.
     pub fn hovered(&self, r: Rect) -> bool {
-        r.contains(self.input.mouse) && !self.block.is_some_and(|b| b.contains(self.input.mouse))
+        r.contains(self.input.mouse)
+            && self.input.mouse.y >= self.clip_top
+            && !self.block.is_some_and(|b| b.contains(self.input.mouse))
     }
 
+    /// Tapped (pressed and released without dragging) inside `r` this frame.
     pub fn clicked(&self, r: Rect) -> bool {
+        !self.swallow && self.tap && self.hovered(r) && r.contains(self.tap_from)
+    }
+
+    /// Pressed inside `r` this frame: for things that are dragged (sliders, crop frame).
+    pub fn pressed_in(&self, r: Rect) -> bool {
         !self.swallow && self.input.pressed && self.hovered(r)
+    }
+
+    /// From here on, nothing above `y` reacts to the pointer (until the next frame or reset).
+    pub fn set_clip_top(&mut self, y: f32) {
+        self.clip_top = y;
+    }
+
+    /// A drag that started inside `r` and is not moving a slider or a popup.
+    fn dragging_in(&self, r: Rect) -> bool {
+        self.dragged
+            && self.input.down
+            && self.active.is_none()
+            && self.popup.is_none()
+            && self.press_at.is_some_and(|p| r.contains(p) && p.y >= self.clip_top)
+    }
+
+    /// Scrolls a pane by pixels: mouse wheel over `r`, or a drag (touch) that began in it.
+    pub fn scroll_px(&mut self, r: Rect, offset: &mut f32, max: f32) {
+        if self.hovered(r) && self.input.wheel != 0.0 {
+            *offset -= self.input.wheel * 40.0;
+        }
+        if self.dragging_in(r) {
+            *offset -= self.mouse_delta.y;
+        }
+        *offset = offset.clamp(0.0, max.max(0.0));
+    }
+
+    /// Rows to scroll a list that moves a whole row at a time: `wheel_rows` per wheel step
+    /// over `r`, or one row per `row_h` dragged. Positive moves further down the list.
+    pub fn scroll_rows(&mut self, r: Rect, row_h: f32, wheel_rows: isize) -> isize {
+        let mut rows = 0;
+        if self.hovered(r) && self.input.wheel != 0.0 {
+            rows = if self.input.wheel < 0.0 { wheel_rows } else { -wheel_rows };
+        }
+        if self.dragging_in(r) {
+            self.row_drag -= self.mouse_delta.y;
+            while self.row_drag >= row_h {
+                rows += 1;
+                self.row_drag -= row_h;
+            }
+            while self.row_drag <= -row_h {
+                rows -= 1;
+                self.row_drag += row_h;
+            }
+        }
+        rows
     }
 
     // ---------- drawing helpers ----------
@@ -289,7 +404,14 @@ impl Ui {
         if selected {
             rrect_lines(r, 5.0, ACCENT);
         }
-        self.text_centered(label, r, 15.0, if selected { Color::new(1.0, 0.86, 0.66, 1.0) } else { TEXT });
+        let colour = if selected { Color::new(1.0, 0.86, 0.66, 1.0) } else { TEXT };
+        // a label too wide for a narrow button (phones) is set smaller, then cut
+        let size = if self.measure(label, 15.0) <= r.w - 8.0 { 15.0 } else { 13.0 };
+        if self.measure(label, size) <= r.w - 8.0 {
+            self.text_centered(label, r, size, colour);
+        } else {
+            self.text_fit(label, r.x + 4.0, r.y + r.h / 2.0 + size * 0.35, size, colour, r.w - 8.0);
+        }
         self.clicked(r)
     }
 
@@ -339,7 +461,7 @@ impl Ui {
     fn slider_core(&mut self, id: &str, r: Rect, value: &mut f32, min: f32, max: f32, ticks: usize) {
         self.mark(id, r);
         let track = Rect::new(r.x + 8.0, r.y + r.h / 2.0 - 2.0, r.w - 16.0, 4.0);
-        if self.clicked(r) {
+        if self.pressed_in(r) {
             self.active = Some(id.to_string());
         }
         if self.active.as_deref() == Some(id) && (self.input.down || self.input.pressed) {
@@ -363,6 +485,24 @@ impl Ui {
 
     pub fn text_field(&mut self, id: &str, r: Rect, value: &mut String, placeholder: &str) -> bool {
         self.mark(id, r);
+        // In the browser a real (see-through) input lies over the field, so phones and
+        // tablets show their keyboard; the field shows what was typed there.
+        #[cfg(target_arch = "wasm32")]
+        if r.y >= self.clip_top && self.popup.is_none() {
+            let (focused, typed) = crate::web::text_field(id, r, value, placeholder);
+            let mut changed = false;
+            if let Some(v) = typed {
+                *value = v;
+                changed = true;
+            }
+            if focused {
+                self.focus = Some(id.to_string());
+            } else if self.focus.as_deref() == Some(id) {
+                self.focus = None;
+            }
+            self.draw_field(id, r, value, placeholder);
+            return changed;
+        }
         let focused = self.focus.as_deref() == Some(id);
         let mut changed = false;
         if self.clicked(r) {
@@ -385,6 +525,12 @@ impl Ui {
                 self.focus = None;
             }
         }
+        self.draw_field(id, r, value, placeholder);
+        changed
+    }
+
+    fn draw_field(&self, id: &str, r: Rect, value: &str, placeholder: &str) {
+        let focused = self.focus.as_deref() == Some(id);
         rrect(r, 4.0, if focused { BG } else { PANEL2 });
         rrect_lines(r, 4.0, if focused { ACCENT } else { BORDER });
         let ty = r.y + r.h / 2.0 + 5.0;
@@ -397,7 +543,6 @@ impl Ui {
             let w = self.measure(value, 15.0).min(r.w - 18.0);
             draw_line(r.x + 9.0 + w, r.y + 6.0, r.x + 9.0 + w, r.y + r.h - 6.0, 1.5, ACCENT);
         }
-        changed
     }
 
     /// Button that opens a list; returns the picked index once chosen.
@@ -433,11 +578,11 @@ impl Ui {
                         None => self.measure(s, 15.0),
                     })
                     .fold(0.0, f32::max);
-                let w = (widest + 24.0).clamp(anchor.w.max(180.0), 520.0_f32.max(anchor.w));
+                let w = (widest + 24.0).clamp(anchor.w.max(180.0), 520.0_f32.max(anchor.w)).min(screen_width() - 8.0);
                 self.popup = Some(Popup { id: id.to_string(), anchor, items, w });
-                // Do not let this same press close the popup again in end().
+                // Do not let this same tap close the popup again in end().
                 self.swallow = true;
-                self.input.pressed = false;
+                self.tap = false;
             }
         }
         if let Some((pid, i)) = &self.popup_result {

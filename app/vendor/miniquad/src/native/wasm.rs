@@ -316,6 +316,9 @@ pub extern "C" fn resize(width: i32, height: i32) {
         let mut d = crate::native_display().lock().unwrap();
         d.screen_width = width as _;
         d.screen_height = height as _;
+        // devicePixelRatio changes with browser zoom and when the window moves to another
+        // screen; gl.js sizes the canvas with the current value, so keep them in step.
+        d.dpi_scale = unsafe { dpi_scale() };
     }
     tl_event_handler(|event_handler| {
         event_handler.resize_event(width as _, height as _);

@@ -8,30 +8,36 @@
     const bytes = (ptr, len) => new Uint8Array(wasm_memory.buffer, ptr, len);
     const text = (ptr, len) => decoder.decode(bytes(ptr, len).slice());
 
-    // Browsers (Safari on iOS most strictly) open a file chooser or start a download only
-    // during a click or tap. App buttons react when pressed, and the app sees that a frame
-    // later, so the action runs when the finger or mouse button is lifted; if that already
-    // happened, it runs straight away and relies on the browser's short grace period.
-    let pointerDown = false;
-    let afterRelease = [];
-    function runInGesture(action) {
-        if (pointerDown) {
-            afterRelease.push(action);
-        } else {
+    // Browsers open a file chooser or start a download only shortly after a click or tap.
+    // App buttons react when released, a frame later, which is normally still in time; when
+    // the browser says it is not (navigator.userActivation), a small sheet with a real
+    // button asks for one more tap.
+    function inTime() {
+        const ua = navigator.userActivation;
+        return ua ? ua.isActive : !window.matchMedia("(pointer: coarse)").matches;
+    }
+
+    function runInGesture(label, action) {
+        if (inTime()) {
             action();
+            return;
         }
+        const sheet = document.createElement("div");
+        sheet.className = "pca-sheet";
+        const box = document.createElement("div");
+        const go = document.createElement("button");
+        go.textContent = label;
+        go.className = "pca-go";
+        const cancel = document.createElement("button");
+        cancel.textContent = "Cancel";
+        const close = () => sheet.remove();
+        go.addEventListener("click", () => { close(); action(); });
+        cancel.addEventListener("click", close);
+        sheet.addEventListener("click", (e) => { if (e.target === sheet) close(); });
+        box.append(go, cancel);
+        sheet.append(box);
+        document.body.appendChild(sheet);
     }
-    function released() {
-        pointerDown = false;
-        const actions = afterRelease;
-        afterRelease = [];
-        actions.forEach((a) => a());
-    }
-    window.addEventListener("mousedown", () => { pointerDown = true; }, true);
-    window.addEventListener("touchstart", () => { pointerDown = true; }, true);
-    window.addEventListener("mouseup", released, true);
-    window.addEventListener("touchend", released, true);
-    window.addEventListener("touchcancel", released, true);
 
     // ---------- open a picture ----------
 
@@ -57,6 +63,37 @@
         return input;
     }
 
+    // ---------- text fields ----------
+
+    // Each text field of the app gets a real input placed over it, see-through until it has
+    // the focus, so that tapping a field brings up the phone's or tablet's keyboard.
+    const fields = new Map(); // id -> { el, typed: string | null }
+    const seen = new Set();
+    let typedOut = null;
+
+    function field(id) {
+        let f = fields.get(id);
+        if (f) return f;
+        const el = document.createElement("input");
+        el.type = "text";
+        el.className = "pca-field";
+        el.maxLength = 60;
+        el.autocomplete = "off";
+        el.spellcheck = false;
+        f = { el, typed: null };
+        el.addEventListener("input", () => { f.typed = el.value; });
+        el.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === "Escape") el.blur();
+        });
+        el.addEventListener("blur", () => {
+            const canvas = document.getElementById("glcanvas");
+            if (canvas) canvas.focus();
+        });
+        document.body.appendChild(el);
+        fields.set(id, f);
+        return f;
+    }
+
     // ---------- local storage ----------
 
     // pca_storage_len encodes the value; pca_storage_get then copies that same encoding.
@@ -65,7 +102,42 @@
     function register_plugin(importObject) {
         const env = importObject.env;
 
-        env.pca_open_picture = () => runInGesture(() => chooser().click());
+        env.pca_text_field = (idPtr, idLen, x, y, w, h, valuePtr, valueLen, phPtr, phLen) => {
+            const id = text(idPtr, idLen);
+            const f = field(id);
+            const el = f.el;
+            seen.add(id);
+            el.style.display = "block";
+            el.style.left = x + "px";
+            el.style.top = y + "px";
+            el.style.width = w + "px";
+            el.style.height = h + "px";
+            el.placeholder = text(phPtr, phLen);
+            const focused = document.activeElement === el;
+            if (f.typed !== null) {
+                typedOut = encoder.encode(f.typed);
+                f.typed = null;
+                return ((typedOut.length + 1) << 1) | (focused ? 1 : 0);
+            }
+            const value = text(valuePtr, valueLen);
+            if (!focused && el.value !== value) el.value = value;
+            return focused ? 1 : 0;
+        };
+        env.pca_text_field_take = (outPtr) => {
+            if (typedOut != null) bytes(outPtr, typedOut.length).set(typedOut);
+            typedOut = null;
+        };
+        env.pca_text_fields_end = () => {
+            for (const [id, f] of fields) {
+                if (!seen.has(id) && f.el.style.display !== "none") {
+                    if (document.activeElement === f.el) f.el.blur();
+                    f.el.style.display = "none";
+                }
+            }
+            seen.clear();
+        };
+
+        env.pca_open_picture = () => runInGesture("Choose a picture", () => chooser().click());
         env.pca_picture_len = () => (picture == null ? -1 : picture.data.length);
         env.pca_picture_name_len = () => (picture == null ? 0 : picture.name.length);
         env.pca_picture_take = (dataPtr, namePtr) => {
@@ -78,7 +150,7 @@
         env.pca_save_file = (namePtr, nameLen, mimePtr, mimeLen, dataPtr, dataLen) => {
             const name = text(namePtr, nameLen);
             const blob = new Blob([bytes(dataPtr, dataLen).slice()], { type: text(mimePtr, mimeLen) });
-            runInGesture(() => {
+            runInGesture("Save " + name, () => {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -119,5 +191,5 @@
         if (loading) loading.remove();
     }
 
-    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 1 });
+    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 2 });
 })();

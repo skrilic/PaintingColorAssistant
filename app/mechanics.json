@@ -42,7 +42,7 @@
     {
       "name": "pick colour",
       "group": "controls",
-      "value": "left click on picture",
+      "value": "click or tap on picture",
       "estimated": true
     },
     {
@@ -436,6 +436,52 @@
       "group": "window",
       "value": 880,
       "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "tap slop",
+      "group": "controls",
+      "value": 10,
+      "unit": "px",
+      "note": "buttons react on release; more movement since the press makes it a drag (scrolls lists and panes)",
+      "estimated": true
+    },
+    {
+      "name": "compact layout below width",
+      "group": "window",
+      "value": 900,
+      "unit": "px",
+      "note": "one pane at a time (phones, tablets held upright)",
+      "source": "request",
+      "estimated": true
+    },
+    {
+      "name": "pane bar height",
+      "group": "window",
+      "value": 44,
+      "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "compact picked card height",
+      "group": "window",
+      "value": 104,
+      "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "recipe row height",
+      "group": "window",
+      "value": 66,
+      "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "recipe row height on narrow panel",
+      "group": "window",
+      "value": 84,
+      "unit": "px",
+      "note": "panel narrower than 380 px",
       "estimated": true
     },
     {

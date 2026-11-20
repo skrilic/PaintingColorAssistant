@@ -31,6 +31,10 @@ struct Args {
     self_test: Option<String>,
     image: Option<PathBuf>,
     palettes: bool,
+    /// Window size in logical px, e.g. "390x780" to see the compact (phone) layout.
+    window: Option<(i32, i32)>,
+    /// Compact layout: pane to show (0 to 2), for screenshots.
+    pane: Option<usize>,
 }
 
 impl Args {
@@ -42,6 +46,13 @@ impl Args {
                 "--screenshot" => a.screenshot = it.next(),
                 "--self-test" => a.self_test = it.next(),
                 "--palettes" => a.palettes = true,
+                "--pane" => a.pane = it.next().and_then(|v| v.parse().ok()),
+                "--window" => {
+                    a.window = it.next().and_then(|v| {
+                        let (w, h) = v.split_once('x')?;
+                        Some((w.parse().ok()?, h.parse().ok()?))
+                    })
+                }
                 _ if !s.starts_with("--") => a.image = Some(PathBuf::from(s)),
                 _ => {}
             }
@@ -54,11 +65,12 @@ impl Args {
     }
 }
 
-fn window_conf() -> Conf {
+fn window_conf(size: Option<(i32, i32)>) -> Conf {
+    let (window_width, window_height) = size.unwrap_or((1400, 880));
     Conf {
         window_title: "Painting Colour Assistant".to_owned(),
-        window_width: 1400,
-        window_height: 880,
+        window_width,
+        window_height,
         high_dpi: true,
         window_resizable: true,
         icon: window_icon(),
@@ -141,6 +153,10 @@ async fn run(args: Args) {
         app.edit_palette = Some(0);
         app.select_paint(Some(0));
     }
+    if let Some(p) = args.pane {
+        app.pane_painting = p;
+        app.pane_palettes = p;
+    }
     let mut test = args.self_test.as_ref().map(|_| selftest::SelfTest::new());
     if test.is_some() {
         // The self-test presses "Export PDF"; save to a temporary file instead of asking.
@@ -205,7 +221,7 @@ fn main() {
         // Read by the patched window library: open the window without taking focus.
         unsafe { std::env::set_var("MINIQUAD_NO_ACTIVATE", "1") };
     }
-    macroquad::Window::from_config(window_conf(), run(args));
+    macroquad::Window::from_config(window_conf(args.window), run(args));
 }
 
 #[cfg(test)]

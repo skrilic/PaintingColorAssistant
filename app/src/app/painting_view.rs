@@ -6,6 +6,10 @@ use crate::ui::{ACCENT, ACCENT_DIM, PANEL2, rrect, rrect_lines, swatch};
 
 impl App {
     pub(super) fn painting(&mut self, ui: &mut Ui) {
+        if Self::compact() {
+            self.painting_compact(ui);
+            return;
+        }
         let (w, h) = (screen_width(), screen_height());
         let canvas = Rect::new(LEFT_W, TOP_BAR, (w - LEFT_W - RIGHT_W).max(100.0), h - TOP_BAR - BOTTOM_STRIP);
         self.canvas(ui, canvas);
@@ -14,7 +18,85 @@ impl App {
         self.right_panel(ui, Rect::new(w - RIGHT_W, TOP_BAR, RIGHT_W, h - TOP_BAR));
     }
 
-    fn left_panel(&mut self, ui: &mut Ui, r: Rect) {
+    /// Compact layout: one pane at a time, picked in the pane bar.
+    fn painting_compact(&mut self, ui: &mut Ui) {
+        let (w, h) = (screen_width(), screen_height());
+        let top = Self::content_top();
+        let area = Rect::new(0.0, top, w, h - top);
+        if self.cropping {
+            // the crop frame is dragged on the picture
+            self.pane_painting = 0;
+        }
+        match self.pane_painting {
+            0 => self.picture_pane(ui, area),
+            1 => {
+                let r = Rect::new(0.0, area.y - self.pane_scroll, w, area.h + self.pane_scroll);
+                let end = self.left_panel(ui, r);
+                let mut scroll = self.pane_scroll;
+                ui.scroll_px(area, &mut scroll, end + 24.0 - r.y - area.h);
+                self.pane_scroll = scroll;
+            }
+            _ => self.right_panel(ui, area),
+        }
+    }
+
+    /// Compact layout, "Picture" pane: a row of picture buttons, the picture, the value or
+    /// colour strip and the recipe of the clicked spot.
+    fn picture_pane(&mut self, ui: &mut Ui, area: Rect) {
+        let x = area.x + 10.0;
+        let bw = area.w - 20.0;
+        let y = area.y + 8.0;
+        let row_h = 32.0;
+        draw_rectangle(area.x, area.y, area.w, row_h + 16.0, PANEL);
+        if self.cropping {
+            let names: Vec<String> = CROP_ASPECTS.iter().map(|a| format!("Shape: {}", a.0)).collect();
+            let dw = (bw * 0.42).round();
+            if let Some(i) = ui.dropdown("crop_aspect", Rect::new(x, y, dw, row_h), &names[self.crop_aspect], &names) {
+                self.crop_aspect = i;
+                self.fit_crop_aspect();
+            }
+            let half = (bw - dw - 12.0) / 2.0;
+            if ui.button("crop_apply", Rect::new(x + dw + 6.0, y, half, row_h), "Apply crop") {
+                self.apply_crop();
+            }
+            if ui.button("crop_cancel", Rect::new(x + dw + half + 12.0, y, half, row_h), "Cancel") {
+                self.cropping = false;
+            }
+        } else {
+            let ow = (bw * 0.42).round();
+            if ui.button("open_image", Rect::new(x, y, ow, row_h), "Open picture...") {
+                self.open_dialog();
+            }
+            let menu = Rect::new(x + ow + 4.0, y, 32.0, row_h);
+            if let Some(i) = ui.menu_button("open_recent", menu, Rect::new(x, y, ow + 36.0, row_h), || self.recent_menu_items()) {
+                self.recent_menu_pick(i);
+            }
+            let rest = bw - ow - 42.0;
+            let sx = menu.x + menu.w + 6.0;
+            if ui.button("sample_image", Rect::new(sx, y, rest * 0.55 - 3.0, row_h), "Sample") {
+                self.set_image("Sample landscape".into(), imgproc::sample_landscape(1200, 800));
+            }
+            let cr = Rect::new(sx + rest * 0.55 + 3.0, y, rest * 0.45 - 3.0, row_h);
+            if ui.button("crop_start", cr, "Crop...") && self.img.is_some() {
+                self.start_crop();
+            }
+        }
+        // a phone held sideways has no height to spare: the recipe is under "Recipes" then
+        let card_h = if self.cropping || area.h < 480.0 { 0.0 } else { PICKED_CARD_H };
+        let canvas_y = area.y + row_h + 16.0;
+        let canvas = Rect::new(area.x, canvas_y, area.w, (area.y + area.h - canvas_y - BOTTOM_STRIP - card_h).max(80.0));
+        self.canvas(ui, canvas);
+        self.bottom_strip(ui, Rect::new(area.x, canvas.y + canvas.h, area.w, BOTTOM_STRIP));
+        if card_h > 0.0 {
+            let cy = canvas.y + canvas.h + BOTTOM_STRIP;
+            draw_rectangle(area.x, cy, area.w, area.y + area.h - cy, PANEL);
+            draw_line(area.x, cy, area.x + area.w, cy, 1.0, BORDER);
+            self.picked_section(ui, x + 6.0, cy + 22.0, bw - 12.0);
+        }
+    }
+
+    /// Panel of picture controls; returns the y where its content ends.
+    fn left_panel(&mut self, ui: &mut Ui, r: Rect) -> f32 {
         draw_rectangle(r.x, r.y, r.w, r.h, PANEL);
         draw_line(r.x + r.w, r.y, r.x + r.w, r.y + r.h, 1.0, BORDER);
         let x = r.x + 16.0;
@@ -190,10 +272,11 @@ impl App {
             y += 26.0;
         }
         let hy = r.y + r.h - 40.0;
-        if hy > y + 24.0 {
+        if hy > y + 24.0 && !Self::compact() {
             ui.text("Tip: drop a picture file on the", x, hy, 13.0, MUTED);
             ui.text("window to open it.", x, hy + 17.0, 13.0, MUTED);
         }
+        y
     }
 
     fn fit_crop_aspect(&mut self) {
@@ -216,7 +299,7 @@ impl App {
     }
 
     fn fit_rect(area: Rect, iw: f32, ih: f32) -> Rect {
-        let pad = 18.0;
+        let pad = if Self::compact() { 8.0 } else { 18.0 };
         let aw = (area.w - 2.0 * pad).max(10.0);
         let ah = (area.h - 2.0 * pad).max(10.0);
         let s = (aw / iw).min(ah / ih);
@@ -228,7 +311,8 @@ impl App {
         draw_rectangle(area.x, area.y, area.w, area.h, Color::new(0.08, 0.085, 0.095, 1.0));
         ui.mark("canvas", area);
         let Some(img) = &self.img else {
-            ui.text_centered("Open a picture or use the sample to start", area, 18.0, MUTED);
+            let hint = if Self::compact() { "Open a picture or use the sample" } else { "Open a picture or use the sample to start" };
+            ui.text_centered(hint, area, 18.0, MUTED);
             return;
         };
         if self.cropping {
@@ -305,7 +389,7 @@ impl App {
         let m = ui.input.mouse;
         let n = ((m - ir.point()) / ir.size()).clamp(Vec2::ZERO, Vec2::ONE);
         let grab = Rect::new(ir.x - 10.0, ir.y - 10.0, ir.w + 20.0, ir.h + 20.0);
-        if ui.clicked(grab) {
+        if ui.pressed_in(grab) {
             let mut mode = CropDrag::New(n);
             if let Some(s) = self.crop_sel {
                 let sr = Rect::new(ir.x + s.x * ir.w, ir.y + s.y * ir.h, s.w * ir.w, s.h * ir.h);
@@ -480,6 +564,9 @@ impl App {
                 self.edit_palette = self.palette_idx;
                 self.select_paint(None);
             }
+            // compact layout: straight to the palette's paints
+            self.pane_palettes = 1;
+            self.pane_scroll = 0.0;
         }
         ui.hud("palette");
         y += 40.0;
@@ -506,44 +593,24 @@ impl App {
             ui.text("Create a palette for this kind of paint first.", x, y + 14.0, 14.0, MUTED);
             y += 34.0;
         }
-        // mixing options
+        // mixing options; on a narrow panel the checkbox goes on its own line
         ui.text("Paints per mix", x, y + 18.0, 14.0, TEXT);
         if let Some(i) = ui.segmented("max_paints", Rect::new(x + 104.0, y, 117.0, 26.0), &["1", "2", "3"], self.max_paints as usize - 1) {
             self.max_paints = i as i32 + 1;
             self.mix_dirty = true;
         }
         let lab = if self.medium.uses_water() { "Lighten with water" } else { "Lighten with white" };
-        if ui.checkbox("allow_lighten", Rect::new(x + 236.0, y, bw - 236.0, 26.0), lab, &mut self.allow_lighten) {
+        let narrow = bw < 380.0;
+        let lr = if narrow { Rect::new(x, y + 34.0, bw, 26.0) } else { Rect::new(x + 236.0, y, bw - 236.0, 26.0) };
+        if ui.checkbox("allow_lighten", lr, lab, &mut self.allow_lighten) {
             self.mix_dirty = true;
         }
-        y += 40.0;
+        y += if narrow { 72.0 } else { 40.0 };
 
         // clicked spot
         draw_line(x, y, x + bw, y, 1.0, BORDER);
         y += 22.0;
-        ui.header("CLICKED SPOT", x, y);
-        y += 10.0;
-        ui.hud("picked");
-        if let Some(p) = &self.picked {
-            swatch(Rect::new(x, y, 44.0, 44.0), p.srgb);
-            if let (Some(rc), Some(m)) = (&p.recipe, &self.mixer) {
-                swatch(Rect::new(x + 48.0, y, 44.0, 44.0), rc.srgb);
-                recipe_text(ui, "picked_match", m, rc, x + 104.0, y + 16.0, bw - 104.0);
-            } else {
-                ui.text("No paints to mix with", x + 56.0, y + 26.0, 14.0, MUTED);
-            }
-            ui.text("picture", x + 2.0, y + 58.0, 11.0, MUTED);
-            ui.text("mix", x + 60.0, y + 58.0, 11.0, MUTED);
-            y += 68.0;
-        } else {
-            let hint = if self.view == View::Colours {
-                "Click the picture to pick out one colour level."
-            } else {
-                "Click anywhere on the picture to get its recipe."
-            };
-            ui.text(hint, x, y + 16.0, 14.0, MUTED);
-            y += 32.0;
-        }
+        y = self.picked_section(ui, x, y, bw);
         draw_line(x, y, x + bw, y, 1.0, BORDER);
         y += 22.0;
 
@@ -567,25 +634,23 @@ impl App {
             self.draw_tip(ui, tip);
             return;
         };
-        let visible = ((list.h - 4.0) / RECIPE_ROW_H).floor().max(1.0) as usize;
+        // narrow panel (phone): taller rows, the paints may wrap to a second line
+        let narrow = bw < 380.0;
+        let row_h = if narrow { RECIPE_ROW_H_NARROW } else { RECIPE_ROW_H };
+        let visible = ((list.h - 4.0) / row_h).floor().max(1.0) as usize;
         let max_scroll = total.saturating_sub(visible);
-        if ui.hovered(list) && ui.input.wheel != 0.0 {
-            if ui.input.wheel < 0.0 {
-                self.recipe_scroll += 1;
-            } else {
-                self.recipe_scroll = self.recipe_scroll.saturating_sub(1);
-            }
-        }
-        self.recipe_scroll = self.recipe_scroll.min(max_scroll);
+        let rows = ui.scroll_rows(list, row_h, 1);
+        self.recipe_scroll = self.recipe_scroll.saturating_add_signed(rows).min(max_scroll);
         let nvals = self.value_levels as usize;
         let mut clicked = None;
         for (row, i) in (self.recipe_scroll..total).take(visible).enumerate() {
-            let rr = Rect::new(x - 6.0, y + row as f32 * RECIPE_ROW_H, bw + 12.0, RECIPE_ROW_H - 4.0);
+            let rr = Rect::new(x - 6.0, y + row as f32 * row_h, bw + 12.0, row_h - 4.0);
             ui.mark(&format!("recipe_row_{i}"), rr);
             let hl = self.highlight == Some(i);
             rrect(rr, 6.0, if hl { ACCENT_DIM } else if ui.hovered(rr) { PANEL2 } else { BG });
             let sx = rr.x + 6.0;
-            swatch(Rect::new(sx, rr.y + 6.0, 24.0, 50.0), c.srgb[i]);
+            let sh = rr.h - 12.0;
+            swatch(Rect::new(sx, rr.y + 6.0, 24.0, sh), c.srgb[i]);
             let value_no = self
                 .img
                 .as_ref()
@@ -593,11 +658,16 @@ impl App {
                 .unwrap_or(0);
             match &self.recipes[i] {
                 Some(rc) => {
-                    swatch(Rect::new(sx + 27.0, rr.y + 6.0, 24.0, 50.0), rc.srgb);
+                    swatch(Rect::new(sx + 27.0, rr.y + 6.0, 24.0, sh), rc.srgb);
                     let tx = sx + 62.0;
                     let info = format!("{}.   {:.0}% of the picture   value {}/{}", i + 1, c.share[i] * 100.0, value_no, nvals);
                     ui.text(&info, tx, rr.y + 17.0, 12.0, MUTED);
-                    recipe_text(ui, &format!("recipe_match_{i}"), m, rc, tx, rr.y + 36.0, rr.w - (tx - rr.x) - 8.0);
+                    let tw = rr.w - (tx - rr.x) - 8.0;
+                    if narrow {
+                        recipe_text_wrapped(ui, &format!("recipe_match_{i}"), m, rc, tx, rr.y + 36.0, tw);
+                    } else {
+                        recipe_text(ui, &format!("recipe_match_{i}"), m, rc, tx, rr.y + 36.0, tw);
+                    }
                 }
                 None => ui.text("mixing...", sx + 62.0, rr.y + 34.0, 14.0, MUTED),
             }
@@ -606,7 +676,7 @@ impl App {
             }
         }
         if total > visible {
-            let track = Rect::new(r.x + r.w - 6.0, y, 3.0, visible as f32 * RECIPE_ROW_H);
+            let track = Rect::new(r.x + r.w - 6.0, y, 3.0, visible as f32 * row_h);
             draw_rectangle(track.x, track.y, track.w, track.h, PANEL2);
             let th = track.h * visible as f32 / total as f32;
             let ty = track.y + (track.h - th) * self.recipe_scroll as f32 / max_scroll.max(1) as f32;
@@ -618,6 +688,57 @@ impl App {
             self.tex_dirty = true;
         }
         self.draw_tip(ui, tip);
+    }
+
+    /// "Clicked spot" header and the recipe for it, from `y` (the header's baseline); returns
+    /// the y below it. In the compact layout's Colour levels view, a selected colour level
+    /// is shown instead, as its recipe row is in another pane.
+    fn picked_section(&mut self, ui: &mut Ui, x: f32, y: f32, bw: f32) -> f32 {
+        let tap = if Self::compact() { "Tap" } else { "Click" };
+        if Self::compact() && self.view == View::Colours {
+            if let (Some(i), Some(c), Some(m)) = (self.highlight, &self.colours, &self.mixer) {
+                ui.header(&format!("COLOUR LEVEL {}  ({:.0}% of the picture)", i + 1, c.share[i] * 100.0), x, y);
+                let y = y + 10.0;
+                swatch(Rect::new(x, y, 44.0, 44.0), c.srgb[i]);
+                match self.recipes.get(i).and_then(|r| r.as_ref()) {
+                    Some(rc) => {
+                        swatch(Rect::new(x + 48.0, y, 44.0, 44.0), rc.srgb);
+                        recipe_text_wrapped(ui, &format!("level_match_{i}"), m, rc, x + 100.0, y + 12.0, bw - 100.0);
+                    }
+                    None => ui.text("mixing...", x + 104.0, y + 26.0, 14.0, MUTED),
+                }
+                ui.text("level", x + 2.0, y + 58.0, 11.0, MUTED);
+                ui.text("mix", x + 60.0, y + 58.0, 11.0, MUTED);
+                return y + 68.0;
+            }
+        }
+        ui.header("CLICKED SPOT", x, y);
+        let y = y + 10.0;
+        ui.hud("picked");
+        if let Some(p) = &self.picked {
+            swatch(Rect::new(x, y, 44.0, 44.0), p.srgb);
+            if let (Some(rc), Some(m)) = (&p.recipe, &self.mixer) {
+                swatch(Rect::new(x + 48.0, y, 44.0, 44.0), rc.srgb);
+                if Self::compact() {
+                    recipe_text_wrapped(ui, "picked_match", m, rc, x + 100.0, y + 12.0, bw - 100.0);
+                } else {
+                    recipe_text(ui, "picked_match", m, rc, x + 104.0, y + 16.0, bw - 104.0);
+                }
+            } else {
+                ui.text("No paints to mix with", x + 56.0, y + 26.0, 14.0, MUTED);
+            }
+            ui.text("picture", x + 2.0, y + 58.0, 11.0, MUTED);
+            ui.text("mix", x + 60.0, y + 58.0, 11.0, MUTED);
+            y + 68.0
+        } else {
+            let hint = if self.view == View::Colours {
+                format!("{tap} the picture to pick out one colour level.")
+            } else {
+                format!("{tap} anywhere on the picture to get its recipe.")
+            };
+            ui.text_fit(&hint, x, y + 16.0, 14.0, MUTED, bw);
+            y + 32.0
+        }
     }
 
     fn draw_tip(&self, ui: &Ui, tip: Option<(String, f32, f32)>) {

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Painting Colour Assistant</title>
     <link rel="icon" type="image/png" href="icon-64.png">
     <style>
@@ -23,6 +23,54 @@
             height: 100dvh;
             outline: none;
             touch-action: none;
+        }
+        /* Inputs laid over the app's text fields (see pca.js); visible only while typing. */
+        .pca-field {
+            position: fixed;
+            display: none;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0 8px;
+            opacity: 0;
+            border: 1px solid #ed9e45;
+            border-radius: 4px;
+            outline: none;
+            background: #1b1c20;
+            color: #ebebf0;
+            /* 16px or more: iOS zooms the page into smaller inputs */
+            font: 16px system-ui, sans-serif;
+        }
+        .pca-field:focus {
+            opacity: 1;
+        }
+        /* Asks for a tap when the browser needs one to open a file chooser or save a file. */
+        .pca-sheet {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.45);
+        }
+        .pca-sheet > div {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: min(420px, 100% - 24px);
+            margin-bottom: 24px;
+        }
+        .pca-sheet button {
+            padding: 14px;
+            border: 1px solid #4d4f59;
+            border-radius: 10px;
+            background: #2f3037;
+            color: #ebebf0;
+            font: 17px system-ui, sans-serif;
+        }
+        .pca-sheet button.pca-go {
+            border-color: #ed9e45;
+            background: #6b4d2b;
+            color: #ffdba8;
         }
         #loading {
             position: fixed;
