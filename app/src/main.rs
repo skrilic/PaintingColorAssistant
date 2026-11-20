@@ -36,6 +36,8 @@ struct Args {
     window: Option<(i32, i32)>,
     /// Compact layout: pane to show (0 to 2), for screenshots.
     pane: Option<usize>,
+    /// Screenshot of this view alone, without overlay or clicked spot (pictures for the website).
+    view: Option<View>,
 }
 
 impl Args {
@@ -48,6 +50,7 @@ impl Args {
                 "--self-test" => a.self_test = it.next(),
                 "--palettes" => a.palettes = true,
                 "--pane" => a.pane = it.next().and_then(|v| v.parse().ok()),
+                "--view" => a.view = it.next().and_then(|v| View::ALL.into_iter().find(|k| k.id() == format!("view_{v}"))),
                 "--window" => {
                     a.window = it.next().and_then(|v| {
                         let (w, h) = v.split_once('x')?;
@@ -147,7 +150,14 @@ async fn run(args: Args) {
         app.screen = app::Screen::Painting;
         app.view = View::Colours;
         app.overlay.kind = Overlay::Fibonacci;
-        app.pick_at(vec2(0.3, 0.86));
+        match args.view {
+            // set before anything draws the picture (picking a spot builds its texture)
+            Some(v) => {
+                app.view = v;
+                app.overlay.kind = Overlay::None;
+            }
+            None => app.pick_at(vec2(0.3, 0.86)),
+        }
     }
     if args.palettes {
         app.screen = app::Screen::Palettes;

@@ -1,13 +1,14 @@
-name: Web app
+name: Website and web app
 
-# Builds the web version (WebAssembly, installable as an app) and publishes it on
-# GitHub Pages. Runs with every release tag (v*), next to release.yml, and from
-# "Run workflow" on the Actions tab to publish the current branch straight away.
-# Repository settings -> Pages -> Source must be "GitHub Actions".
+# Builds the website (site/build.py: Home, Changelog, Privacy policy) with the web app
+# (WebAssembly, installable) under app/, and publishes both on GitHub Pages.
+# release.yml runs this after publishing a release, so the download buttons point at the
+# new files; "Run workflow" on the Actions tab publishes the current branch straight away.
+# Repository settings -> Pages -> Source must be "GitHub Actions"; for runs from a release
+# tag, the github-pages environment must allow tags v*.
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -42,12 +43,18 @@ jobs:
           workspaces: app
           key: web
 
-      - name: Build
+      - name: Build web app
         run: ./web/build.sh
+
+      - name: Build website
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 site/build.py --out _site --app app/target/web
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: app/target/web
+          path: _site
 
   deploy:
     name: Publish on GitHub Pages

@@ -1,0 +1,52 @@
+# Privacy policy
+
+Last updated: 20 November 2026
+
+Painting Colour Assistant is a free, open-source app for painters. It does not collect,
+send or sell any personal data. This page explains what stays where.
+
+## Your pictures
+
+Pictures you open are read and analysed on your own device, by the app itself. They are
+never uploaded anywhere: not in the desktop app, and not in the web app, which runs
+entirely in your browser.
+
+## Your palettes and settings
+
+- **Desktop app:** your palettes and the list of recently opened pictures (with each
+  picture's settings) are saved as files in your user settings folder, in a folder named
+  `PaintingColorAssistant`.
+- **Web app:** your palettes are saved in your browser's local storage on your device. The
+  app's own files are kept by the browser so it can start without a network connection.
+
+You can delete this data at any time: remove the settings folder (desktop), or clear the
+site's data in your browser's settings (web app).
+
+## PDF brochures
+
+*Export PDF* creates the brochure on your device. The desktop app saves it where you
+choose; the web app hands it to your browser as a download.
+
+## No accounts, no tracking
+
+The app has no accounts and no sign-in. It contains no analytics, advertising or tracking
+code, sets no cookies, and makes no network requests of its own. This website loads no
+fonts, scripts or images from other sites.
+
+## Services this project uses
+
+- **GitHub Pages** hosts this website and the web app, and **GitHub** hosts the source
+  code and the downloads. When you visit, GitHub receives the usual information any web
+  server receives, such as your IP address; see the
+  [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+- **Ko-fi.** The *Support on Ko-fi* button only opens Ko-fi's website in your browser.
+  Nothing is sent to Ko-fi unless you choose to leave a tip there; Ko-fi's own privacy
+  policy, linked at the bottom of [ko-fi.com](https://ko-fi.com), then applies.
+
+## Changes and questions
+
+If this policy changes, the new version will be published on this page with a new date,
+and the history of changes is kept in the
+[source repository](https://github.com/skrilic/PaintingColorAssistant/commits/main/PRIVACY.md).
+For questions, open an issue on
+[GitHub](https://github.com/skrilic/PaintingColorAssistant/issues).

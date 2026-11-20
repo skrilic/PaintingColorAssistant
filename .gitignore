@@ -21,3 +21,6 @@ investigation.cany/journal/
 .idea/
 *.swp
 *~
+
+# Website build output (site/build.py)
+/_site/

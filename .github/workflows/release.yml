@@ -155,3 +155,13 @@ jobs:
             --title "Painting Colour Assistant $GITHUB_REF_NAME" \
             --notes-file packaging/release-notes.md \
             --generate-notes
+
+  # The website's download buttons point at the newest release, so publish it afterwards.
+  website:
+    name: Website and web app
+    needs: release
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/web.yml

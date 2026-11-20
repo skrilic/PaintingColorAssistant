@@ -1,6 +1,6 @@
 ## Web app (phones, tablets, any browser)
 
-Open **https://skrilic.github.io/PaintingColorAssistant/** – no download needed. To install it:
+Open **https://skrilic.github.io/PaintingColorAssistant/app/** – no download needed. To install it:
 on iPhone and iPad tap *Share → Add to Home Screen* in Safari; on Android tap
 *Install app* (or *⋮ → Add to Home screen*) in Chrome; in Chrome or Edge on a computer use
 the install icon in the address bar. Once opened it also works without a network

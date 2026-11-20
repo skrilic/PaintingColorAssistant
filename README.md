@@ -2,9 +2,13 @@
 
 # Painting Colour Assistant
 
-A desktop tool for painters planning a painting from a reference picture. Open an image,
-crop it, study its values and colours, lay a composition grid over it, and get
-Kubelka-Munk mixing recipes for every colour, made from the paints in your own palettes.
+An app for painters planning a painting from a reference picture, on the desktop and in
+the browser. Open an image, crop it, study its values and colours, lay a composition grid
+over it, and get Kubelka-Munk mixing recipes for every colour, made from the paints in
+your own palettes.
+
+**Website:** <https://skrilic.github.io/PaintingColorAssistant/> – downloads, the web app,
+[changelog](CHANGELOG.md) and [privacy policy](PRIVACY.md).
 
 ![Painting screen](app/shots/now.png)
 
@@ -54,7 +58,7 @@ the *Palettes* pane).
 ## Download
 
 **Phones, tablets and any browser:** open the web app at
-<https://skrilic.github.io/PaintingColorAssistant/> and install it from the browser
+<https://skrilic.github.io/PaintingColorAssistant/app/> and install it from the browser
 (Safari: *Share → Add to Home Screen*; Chrome: *Install app*). It works offline once opened.
 
 Ready-made builds for Linux, macOS and Windows are on the
@@ -117,6 +121,7 @@ BMP and TIFF.
 | `<path>` | Open this picture on start |
 | `--palettes` | Start on the Palettes screen |
 | `--window <W>x<H>` | Window size, e.g. `390x780` to see the phone layout |
+| `--view <name>` | With `--screenshot`: show only that view (`original`, `grey`, `values`, `colours`, `contours`), without overlay or clicked spot |
 | `--pane <0-2>` | In the phone layout, which pane to show (for screenshots) |
 | `--screenshot <file.png>` | Render the Painting screen with a built-in sample landscape, save a PNG and exit |
 | `--self-test <file.json>` | Drive the app with scripted input, write step results as JSON and exit |

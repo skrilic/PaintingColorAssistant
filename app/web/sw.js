@@ -4,7 +4,7 @@
 // uses from the next start on.
 "use strict";
 
-const CACHE = "pca-@BUILD@";
+const CACHE = "pca-app-@BUILD@";
 const FILES = [
     "./",
     "index.html",
@@ -33,6 +33,7 @@ self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches
             .keys()
+            // older builds, and the cache of the app's first home at the site root ("pca-<hash>")
             .then((keys) => Promise.all(keys.filter((k) => k.startsWith("pca-") && k !== CACHE).map((k) => caches.delete(k))))
             .then(() => self.clients.claim())
     );

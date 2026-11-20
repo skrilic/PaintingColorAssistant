@@ -1,0 +1,45 @@
+# Changelog
+
+What changed in each version of Painting Colour Assistant. The newest version is at the top.
+
+## Not released yet
+
+These changes are in the web app already; the next desktop release will have them too.
+
+- **Web app for phones, tablets and any browser.** Open it at
+  [skrilic.github.io/PaintingColorAssistant/app/](https://skrilic.github.io/PaintingColorAssistant/app/)
+  and install it from the browser. It works without a network connection once opened.
+- **Layout for phones and tablets.** On a narrow screen the app shows one pane at a time:
+  the picture with the recipe of the spot you tapped, the picture settings, or the recipes.
+  Lists and panes scroll by dragging.
+- **Export PDF.** Saves a reference brochure: the picture, the value study, the contour
+  drawing, your palette with its mixing chart and a recipe for every colour level.
+- **Contours view.** A line drawing of the picture's edges, with adjustable detail. It can
+  also be drawn on top of the other views.
+- **Golden ratio grid.** A composition overlay with lines at 38.2% and 61.8%.
+- **Recently opened pictures.** The arrow beside *Open picture...* lists the last 10
+  pictures, and each picture remembers its crop, views, overlay and paints.
+- **Match ratings explained.** Point at or tap a rating such as *good* to see what the
+  colour difference means for your painting.
+- **Support on Ko-fi.** A button in the top bar, if you would like to leave a tip.
+- **Project website** with downloads, this changelog and a privacy policy. The web app
+  moved to its own address, ending in `/app/`.
+
+## 0.2.0 – 17 November 2026
+
+- The app has its own icon on every system.
+- Licensed as MIT or Apache-2.0, at your choice.
+
+## 0.1.0 – 17 November 2026
+
+The first version.
+
+- **Palettes.** Build palettes for watercolour, acrylic and oil from a library of 45
+  common pigments, or enter your own paints. Each palette shows a chart of its paints
+  mixed in pairs.
+- **Picture views.** Original, greyscale, value levels (2 to 10) and colour levels (2 to 24).
+- **Crop** with free or fixed shapes.
+- **Composition overlays.** Rule of thirds, Fibonacci spiral and a square grid.
+- **Mixing recipes** for every colour level and any spot you click, made from the paints in
+  your palette with a paint-mixing model (Kubelka-Munk), with a match rating.
+- Downloads for Linux, macOS and Windows.
