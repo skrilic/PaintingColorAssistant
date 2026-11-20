@@ -150,7 +150,18 @@ impl App {
         } else if ui.input.pressed {
             self.confirm_delete = false;
         }
-        y + 28.0
+        let mut y = y + 28.0;
+        // compact layout: the top bar has no room for the support button
+        if Self::compact() {
+            y += 24.0;
+            draw_line(x, y, x + bw, y, 1.0, BORDER);
+            y += 16.0;
+            if ui.support_button("support", Rect::new(x, y, bw, 32.0), "Like the app? Support it on Ko-fi") {
+                self.open_support();
+            }
+            y += 32.0;
+        }
+        y
     }
 
     fn paint_list(&mut self, ui: &mut Ui, r: Rect) {

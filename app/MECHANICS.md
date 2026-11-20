@@ -103,6 +103,7 @@ its masstone colour (full strength), its transparency and its tinting strength.
 |---|---|---|
 | Window | 1400 x 880, resizable | estimated |
 | Left panel / right panel | 250 px / 430 px | estimated |
+| Support on Ko-fi | button left of "Export PDF..." (compact layout: bottom of the Palettes pane) opens https://ko-fi.com/Q6X32AWI41 in the browser | request |
 | Compact layout | below 900 px window width (phones, tablets held upright): one pane at a time, chosen in a 44 px pane bar under the top bar (Painting: Picture, Adjust, Recipes; Palettes: Palettes, Paints, Edit & library); panes taller than the window scroll by dragging or the wheel | request: "tablets and smartphones as important as desktop"; values estimated |
 | Compact Picture pane | picture buttons, the picture, the value or colour strip, then a 104 px card with the clicked spot's recipe (or the selected colour level's, in the Colour levels view); no card when the pane is less than 480 px high (phone held sideways) | estimated |
 | Recipe row height | 66 px; 84 px on a panel narrower than 380 px, where the paints may take two lines | estimated |

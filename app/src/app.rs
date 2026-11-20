@@ -666,9 +666,21 @@ impl App {
         if ui.button("export_pdf", export, "Export PDF...") {
             self.export_pdf();
         }
+        let support = Rect::new(export.x - 160.0, 10.0, 150.0, 32.0);
+        if ui.support_button("support", support, "Support on Ko-fi") {
+            self.open_support();
+        }
         if get_time() < self.status_until {
             let sw = ui.measure(&self.status, 15.0);
-            ui.text(&self.status, (export.x - sw - 16.0).max(tabs.x + 280.0), 32.0, 15.0, ui::ACCENT);
+            ui.text(&self.status, (support.x - sw - 16.0).max(tabs.x + 280.0), 32.0, 15.0, ui::ACCENT);
+        }
+    }
+
+    /// "Support on Ko-fi": opens the author's Ko-fi page in the browser.
+    fn open_support(&mut self) {
+        match crate::links::open_url(crate::links::KOFI_URL) {
+            Ok(()) => self.say("Thank you! Ko-fi opens in your browser"),
+            Err(e) => self.say(format!("Could not open the browser: {e}. The page is {}", crate::links::KOFI_URL)),
         }
     }
 

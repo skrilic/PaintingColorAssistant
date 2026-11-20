@@ -101,6 +101,9 @@ python3 -m http.server -d target/web 8080     # serve it locally
   (they panic in wasm); use `miniquad::date::now()`. The web build embeds
   `assets/fonts/DejaVuSans.ttf`. Bump `PLUGIN_VERSION` in `web.rs` together with `version`
   in `pca.js` when the import list changes.
+- `links.rs` – `open_url` (desktop: `open` / `xdg-open` / `cmd /C start`; web: pca.js) and
+  `KOFI_URL`, used by the "Support on Ko-fi" button (top bar; compact layout: bottom of
+  the Palettes pane). `.github/FUNDING.yml` has the same Ko-fi page.
 - `grid.rs` – rule of thirds, golden ratio (phi) grid, Fibonacci spiral, square grid overlays.
   `Overlay` is serialised in `recent.json`: add new kinds at the end of the enum.
 - `pdf.rs` – minimal PDF writer (JPEG images, shapes, Helvetica text with built-in widths).

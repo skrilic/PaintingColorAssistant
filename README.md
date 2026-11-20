@@ -42,6 +42,15 @@ Palettes are saved automatically to
 (on Linux `~/.config/PaintingColorAssistant/palettes.json`), and the recently opened
 pictures with their settings to `recent.json` in the same folder.
 
+## Support
+
+If the app helps your painting, you can leave a tip – thank you!
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Q6X32AWI41)
+
+The app has the same link: *Support on Ko-fi* in the top bar (on a phone, at the bottom of
+the *Palettes* pane).
+
 ## Download
 
 **Phones, tablets and any browser:** open the web app at

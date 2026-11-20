@@ -147,6 +147,11 @@
             picture = null;
         };
 
+        env.pca_open_url = (urlPtr, urlLen) => {
+            const url = text(urlPtr, urlLen);
+            runInGesture("Open " + new URL(url).host, () => window.open(url, "_blank", "noopener"));
+        };
+
         env.pca_save_file = (namePtr, nameLen, mimePtr, mimeLen, dataPtr, dataLen) => {
             const name = text(namePtr, nameLen);
             const blob = new Blob([bytes(dataPtr, dataLen).slice()], { type: text(mimePtr, mimeLen) });
@@ -196,5 +201,5 @@
         }
     }
 
-    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 2 });
+    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 3 });
 })();

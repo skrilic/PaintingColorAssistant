@@ -2,7 +2,7 @@
 //! keeping data, implemented in `web/pca.js` (a miniquad plugin).
 
 /// Must equal `version` in web/pca.js; miniquad logs a mismatch in the console.
-const PLUGIN_VERSION: u32 = 2;
+const PLUGIN_VERSION: u32 = 3;
 
 #[link(wasm_import_module = "env")]
 unsafe extern "C" {
@@ -29,6 +29,7 @@ unsafe extern "C" {
     ) -> i32;
     fn pca_text_field_take(out: *mut u8);
     fn pca_text_fields_end();
+    fn pca_open_url(url: *const u8, url_len: usize);
 }
 
 /// Read by miniquad's plugin loader to check that web/pca.js matches this build.
@@ -92,6 +93,11 @@ pub fn text_field(id: &str, r: macroquad::math::Rect, value: &str, placeholder: 
         String::from_utf8_lossy(&out).into_owned()
     });
     (focused, typed)
+}
+
+/// Opens `url` in a new browser tab.
+pub fn open_url(url: &str) {
+    unsafe { pca_open_url(url.as_ptr(), url.len()) }
 }
 
 /// End of a frame: hides the inputs of text fields that were not drawn in it.

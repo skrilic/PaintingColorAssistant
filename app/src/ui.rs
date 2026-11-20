@@ -390,6 +390,17 @@ impl Ui {
         self.button_ex(id, r, label, false)
     }
 
+    /// "Support on Ko-fi" button: a blue heart, then the label.
+    pub fn support_button(&mut self, id: &str, r: Rect, label: &str) -> bool {
+        self.mark(id, r);
+        rrect(r, 5.0, if self.hovered(r) { PANEL3 } else { PANEL2 });
+        let tw = self.measure(label, 14.0);
+        let x = r.x + (r.w - tw - 20.0) / 2.0;
+        heart(x + 6.0, r.y + r.h / 2.0, 12.0, KOFI_BLUE);
+        self.text(label, x + 20.0, r.y + r.h / 2.0 + 5.0, 14.0, TEXT);
+        self.clicked(r)
+    }
+
     pub fn button_ex(&mut self, id: &str, r: Rect, label: &str, selected: bool) -> bool {
         self.mark(id, r);
         let hov = self.hovered(r);
@@ -654,6 +665,17 @@ pub fn rrect_lines(r: Rect, rad: f32, c: Color) {
 
 pub fn col(c: [u8; 3]) -> Color {
     Color::from_rgba(c[0], c[1], c[2], 255)
+}
+
+/// Ko-fi's blue, for the heart on the "Support on Ko-fi" button.
+pub const KOFI_BLUE: Color = Color::new(0.447, 0.643, 0.949, 1.0);
+
+/// Small heart centred on (cx, cy), `s` px wide.
+pub fn heart(cx: f32, cy: f32, s: f32, c: Color) {
+    let r = s * 0.27;
+    draw_circle(cx - r, cy - r * 0.4, r, c);
+    draw_circle(cx + r, cy - r * 0.4, r, c);
+    draw_triangle(vec2(cx - 2.0 * r, cy - r * 0.15), vec2(cx + 2.0 * r, cy - r * 0.15), vec2(cx, cy + s * 0.5), c);
 }
 
 /// Colour swatch with a thin outline.

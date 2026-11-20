@@ -9,6 +9,7 @@ mod colour;
 mod grid;
 mod imgproc;
 mod km;
+mod links;
 mod palette;
 mod pdf;
 mod recent;

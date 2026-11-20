@@ -33,3 +33,8 @@ SmartScreen may warn: click *More info → Run anyway*.
 
 Palettes are saved in your user settings folder and survive updates (the web app keeps
 its own, in the browser).
+
+## Support
+
+If the app helps your painting, you can leave a tip on
+[Ko-fi](https://ko-fi.com/Q6X32AWI41) – thank you!
