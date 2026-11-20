@@ -10,6 +10,7 @@ target/
 /pinned/
 *.log
 investigation.cany/investigation/update.lock
+investigation.cany/journal/
 
 # macOS
 .DS_Store
