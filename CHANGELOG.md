@@ -2,9 +2,7 @@
 
 What changed in each version of Painting Colour Assistant. The newest version is at the top.
 
-## Not released yet
-
-These changes are in the web app already; the next desktop release will have them too.
+## 0.3.0 – 20 November 2026
 
 - **Web app for phones, tablets and any browser.** Open it at
   [skrilic.github.io/PaintingColorAssistant/app/](https://skrilic.github.io/PaintingColorAssistant/app/)
