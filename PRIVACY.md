@@ -30,8 +30,15 @@ choose; the web app hands it to your browser as a download.
 ## No accounts, no tracking
 
 The app has no accounts and no sign-in. It contains no analytics, advertising or tracking
-code, sets no cookies, and makes no network requests of its own. This website loads no
-fonts, scripts or images from other sites.
+code, sets no cookies, and makes no network requests of its own, except the update check
+below. This website loads no fonts, scripts or images from other sites.
+
+## Checking for a newer version
+
+Only when you click the app's name (on a phone, its logo), the app asks GitHub for the
+number of the latest release, at `api.github.com`. Nothing about you, your pictures or your
+palettes is sent with it; GitHub receives what any web server receives, such as your IP
+address (see below). The app never checks on its own.
 
 ## Services this project uses
 

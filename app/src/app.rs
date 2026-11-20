@@ -3,6 +3,7 @@
 mod export;
 mod painting_view;
 mod palettes_view;
+mod update_view;
 
 use crate::colour::{srgb8_to_lab, to_hex};
 use crate::grid::{Overlay, OverlaySettings};
@@ -165,6 +166,10 @@ pub struct App {
     pub pane_palettes: usize,
     /// Compact layout: how far the current pane is scrolled (px).
     pane_scroll: f32,
+    /// Asks GitHub whether a newer version is out (when the "About" dialog opens).
+    pub update: crate::update::UpdateCheck,
+    /// The "About" dialog is shown (opened from the app's name in the top bar).
+    pub about_open: bool,
 }
 
 impl App {
@@ -228,6 +233,8 @@ impl App {
             pane_painting: 0,
             pane_palettes: 0,
             pane_scroll: 0.0,
+            update: crate::update::UpdateCheck::new(),
+            about_open: false,
         };
         app.select_medium(Medium::Watercolor);
         app.edit_palette = if app.store.palettes.is_empty() { None } else { Some(0) };
@@ -607,6 +614,8 @@ impl App {
     pub fn frame(&mut self, ui: &mut Ui) {
         clear_background(BG);
         self.update_derived();
+        let about_was_open = self.about_open;
+        ui.set_covered(about_was_open);
         // Content scrolled up under the bars is covered by them and must not react.
         ui.set_clip_top(Self::content_top());
         match self.screen {
@@ -621,6 +630,8 @@ impl App {
         if Self::compact() {
             self.toast(ui);
         }
+        ui.set_covered(false);
+        self.about_dialog(ui, about_was_open);
         ui.end();
         self.save_if_needed();
         // A finished change (no button held, e.g. mid slider drag) is kept for this picture.
@@ -633,6 +644,17 @@ impl App {
         let w = screen_width();
         draw_rectangle(0.0, 0.0, w, TOP_BAR, PANEL);
         draw_line(0.0, TOP_BAR, w, TOP_BAR, 1.0, BORDER);
+        // The logo with the app's name and version (compact: the logo alone) opens the
+        // "About" dialog, which checks for a newer version.
+        let about = Rect::new(8.0, 6.0, if Self::compact() { 40.0 } else { LEFT_W - 16.0 }, TOP_BAR - 12.0);
+        ui.mark("about", about);
+        if ui.hovered(about) {
+            ui::rrect(about, 5.0, ui::PANEL2);
+        }
+        if ui.clicked(about) {
+            self.open_about();
+        }
+        ui.tooltip("about_tip", about, || vec![("About, and check for a newer version".to_string(), TEXT)]);
         // a tiny palette logo drawn from circles
         for (i, c) in [[200u8, 50, 60], [240, 170, 40], [40, 90, 170]].iter().enumerate() {
             draw_circle(22.0 + i as f32 * 9.0, 26.0 + if i == 1 { -5.0 } else { 2.0 }, 7.0, col(*c));
@@ -655,7 +677,8 @@ impl App {
             }
             return;
         }
-        ui.text("Painting Colour Assistant", 50.0, 32.0, 18.0, TEXT);
+        ui.text("Painting Colour Assistant", 50.0, 25.0, 16.0, TEXT);
+        ui.text(&format!("Version {}", crate::update::VERSION), 50.0, 41.0, 12.0, MUTED);
         let tabs = Rect::new(LEFT_W + 20.0, 10.0, 260.0, 32.0);
         if ui.button_ex("tab_palettes", Rect::new(tabs.x, tabs.y, 125.0, tabs.h), "1  Palettes", self.screen == Screen::Palettes) {
             self.screen = Screen::Palettes;

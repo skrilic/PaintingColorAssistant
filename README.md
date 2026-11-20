@@ -55,6 +55,13 @@ If the app helps your painting, you can leave a tip – thank you!
 The app has the same link: *Support on Ko-fi* in the top bar (on a phone, at the bottom of
 the *Palettes* pane).
 
+## Updates
+
+The top bar shows the app's version under its name. Click the name (on a phone, the logo)
+to see whether a newer version is out: the app then asks GitHub for the latest release,
+and offers its download page (the web app reloads with the new version instead). It does
+not check on its own.
+
 ## Download
 
 **Phones, tablets and any browser:** open the web app at
@@ -194,6 +201,7 @@ app/
     app.rs            app state, shared drawing helpers
     app/painting_view.rs   Painting screen
     app/palettes_view.rs   Palettes screen
+    app/update_view.rs     "About" dialog with the update check
     colour.rs         sRGB / linear / CIE Lab conversions, ΔE
     km.rs             Kubelka-Munk model and recipe search
     imgproc.rs        loading, cropping, value levels, k-means colour levels
@@ -201,6 +209,7 @@ app/
     palette.rs        paints, palettes, pigment library, saving
     ui.rs             small immediate-mode UI toolkit
     selftest.rs       scripted end-to-end test
+    update.rs         asks GitHub for the latest version
   assets/             generated icon files embedded in the app
   build.rs            embeds the icon in the Windows .exe
   vendor/miniquad/    patched copy of miniquad 0.4.11

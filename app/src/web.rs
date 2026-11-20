@@ -1,8 +1,8 @@
-//! Web build only (wasm32): the browser side of opening a picture, saving a file and
-//! keeping data, implemented in `web/pca.js` (a miniquad plugin).
+//! Web build only (wasm32): the browser side of opening a picture, saving a file, keeping
+//! data and checking for updates, implemented in `web/pca.js` (a miniquad plugin).
 
 /// Must equal `version` in web/pca.js; miniquad logs a mismatch in the console.
-const PLUGIN_VERSION: u32 = 4;
+const PLUGIN_VERSION: u32 = 5;
 
 #[link(wasm_import_module = "env")]
 unsafe extern "C" {
@@ -31,6 +31,10 @@ unsafe extern "C" {
     fn pca_text_field_take(out: *mut u8);
     fn pca_frame_end();
     fn pca_open_url(url: *const u8, url_len: usize);
+    fn pca_check_update(url: *const u8, url_len: usize);
+    fn pca_update_len() -> i32;
+    fn pca_update_take(out: *mut u8);
+    fn pca_reload_app();
 }
 
 /// Read by miniquad's plugin loader to check that web/pca.js matches this build.
@@ -106,6 +110,33 @@ pub fn text_field(id: &str, r: macroquad::math::Rect, value: &str, placeholder: 
 /// Opens `url` in a new browser tab.
 pub fn open_url(url: &str) {
     unsafe { pca_open_url(url.as_ptr(), url.len()) }
+}
+
+/// Asks `url` (GitHub's latest release) for its `tag_name`; the answer arrives through
+/// `take_update`.
+pub fn check_update(url: &str) {
+    unsafe { pca_check_update(url.as_ptr(), url.len()) }
+}
+
+/// The answer to `check_update` once it has come: the release's tag, or why it failed.
+pub fn take_update() -> Option<Result<String, String>> {
+    let len = unsafe { pca_update_len() };
+    if len < 0 {
+        return None;
+    }
+    let mut out = vec![0u8; len as usize];
+    unsafe { pca_update_take(out.as_mut_ptr()) };
+    let text = String::from_utf8_lossy(&out).into_owned();
+    Some(match text.split_once('\t') {
+        Some(("ok", tag)) => Ok(tag.to_string()),
+        Some((_, e)) => Err(e.to_string()),
+        None => Err(text),
+    })
+}
+
+/// Loads the app again, with its newest files (a waiting service worker takes over first).
+pub fn reload_app() {
+    unsafe { pca_reload_app() }
 }
 
 /// End of a frame: hides the inputs of text fields and buttons that were not drawn in it.

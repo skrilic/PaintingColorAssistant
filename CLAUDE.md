@@ -115,6 +115,14 @@ python3 -m http.server -d target/web 8080     # serve it locally
   (they panic in wasm); use `miniquad::date::now()`. The web build embeds
   `assets/fonts/DejaVuSans.ttf`. Bump `PLUGIN_VERSION` in `web.rs` together with `version`
   in `pca.js` when the import list changes.
+- `update.rs` – update check: `VERSION` (from Cargo.toml), `UpdateCheck` asks GitHub's
+  latest-release API for `tag_name`, only when the user clicks the app's name (compact:
+  the logo, widget id `about`). Desktop: a thread with `ureq` (desktop-only dependency);
+  web: `fetch` in pca.js. `app/update_view.rs` draws the "About" dialog; while it is open
+  `Ui::set_covered` keeps everything under it (and the web inputs) from reacting. "Download"
+  opens the website (`DOWNLOAD_URL`); on the web "Update now" reloads through the service
+  worker. `cargo test -- --ignored` runs the one test that needs the network. The check is
+  described in `PRIVACY.md`: update it if what is sent changes.
 - `links.rs` – `open_url` (desktop: `open` / `xdg-open` / `cmd /C start`; web: pca.js) and
   `KOFI_URL`, used by the "Support on Ko-fi" button (top bar; compact layout: bottom of
   the Palettes pane). `.github/FUNDING.yml` has the same Ko-fi page.

@@ -98,6 +98,8 @@ pub struct Ui {
     row_drag: f32,
     /// Nothing above this y reacts to the pointer (content scrolled under the top bars).
     clip_top: f32,
+    /// A dialog lies over what is drawn now: none of it reacts (see `set_covered`).
+    covered: bool,
 }
 
 impl Ui {
@@ -124,6 +126,7 @@ impl Ui {
             mouse_delta: Vec2::ZERO,
             row_drag: 0.0,
             clip_top: 0.0,
+            covered: false,
         }
     }
 
@@ -147,6 +150,7 @@ impl Ui {
             }
         }
         self.clip_top = 0.0;
+        self.covered = false;
         self.time += dt;
         self.prev_rects = std::mem::take(&mut self.rects);
         self.prev_hud = std::mem::take(&mut self.hud);
@@ -287,6 +291,7 @@ impl Ui {
     /// Mouse is over `r` and not covered by a popup or the top bars.
     pub fn hovered(&self, r: Rect) -> bool {
         r.contains(self.input.mouse)
+            && !self.covered
             && self.input.mouse.y >= self.clip_top
             && !self.block.is_some_and(|b| b.contains(self.input.mouse))
     }
@@ -306,9 +311,16 @@ impl Ui {
         self.clip_top = y;
     }
 
+    /// From here on, nothing reacts to the pointer, as a dialog will be drawn over it; set it
+    /// back to false before drawing the dialog. Reset each frame.
+    pub fn set_covered(&mut self, on: bool) {
+        self.covered = on;
+    }
+
     /// A drag that started inside `r` and is not moving a slider or a popup.
     fn dragging_in(&self, r: Rect) -> bool {
-        self.dragged
+        !self.covered
+            && self.dragged
             && self.input.down
             && self.active.is_none()
             && self.popup.is_none()
@@ -394,7 +406,7 @@ impl Ui {
     /// `web::picture_button`); the click then goes to the browser, not to the app.
     pub fn picture_button(&mut self, id: &str, r: Rect, label: &str) -> bool {
         #[cfg(target_arch = "wasm32")]
-        if r.y >= self.clip_top && self.popup.is_none() {
+        if r.y >= self.clip_top && self.popup.is_none() && !self.covered {
             crate::web::picture_button(r);
         }
         self.button(id, r, label)
@@ -509,7 +521,7 @@ impl Ui {
         // In the browser a real (see-through) input lies over the field, so phones and
         // tablets show their keyboard; the field shows what was typed there.
         #[cfg(target_arch = "wasm32")]
-        if r.y >= self.clip_top && self.popup.is_none() {
+        if r.y >= self.clip_top && self.popup.is_none() && !self.covered {
             let (focused, typed) = crate::web::text_field(id, r, value, placeholder);
             let mut changed = false;
             if let Some(v) = typed {

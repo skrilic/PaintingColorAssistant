@@ -111,6 +111,45 @@
         return f;
     }
 
+    // ---------- update check ----------
+
+    // "ok\t<tag>" or "err\t<reason>" once GitHub has answered, until the app takes it.
+    let updateAnswer = null;
+
+    async function latestTag(url) {
+        try {
+            const response = await fetch(url, { headers: { Accept: "application/vnd.github+json" }, cache: "no-store" });
+            if (!response.ok) return "err\tGitHub answered " + response.status;
+            const tag = (await response.json()).tag_name;
+            return typeof tag === "string" ? "ok\t" + tag : "err\tno version in GitHub's answer";
+        } catch (e) {
+            return "err\tno connection to GitHub";
+        }
+    }
+
+    // Reloads the page with the newest build: the service worker serves its cached copy,
+    // so it first looks for a new one and lets that take over (sw.js skips waiting).
+    async function reloadApp() {
+        const sw = navigator.serviceWorker;
+        if (sw && sw.controller) {
+            try {
+                const reg = await sw.getRegistration();
+                if (reg) {
+                    await reg.update();
+                    if (reg.installing || reg.waiting) {
+                        await new Promise((done) => {
+                            sw.addEventListener("controllerchange", done, { once: true });
+                            setTimeout(done, 10000);
+                        });
+                    }
+                }
+            } catch (e) {
+                // offline or no service worker: a plain reload
+            }
+        }
+        location.reload();
+    }
+
     // ---------- local storage ----------
 
     // pca_storage_len encodes the value; pca_storage_get then copies that same encoding.
@@ -180,6 +219,17 @@
             runInGesture("Open " + new URL(url).host, () => window.open(url, "_blank", "noopener"));
         };
 
+        env.pca_check_update = (urlPtr, urlLen) => {
+            updateAnswer = null;
+            latestTag(text(urlPtr, urlLen)).then((answer) => { updateAnswer = encoder.encode(answer); });
+        };
+        env.pca_update_len = () => (updateAnswer == null ? -1 : updateAnswer.length);
+        env.pca_update_take = (outPtr) => {
+            if (updateAnswer != null) bytes(outPtr, updateAnswer.length).set(updateAnswer);
+            updateAnswer = null;
+        };
+        env.pca_reload_app = () => { reloadApp(); };
+
         env.pca_save_file = (namePtr, nameLen, mimePtr, mimeLen, dataPtr, dataLen) => {
             const name = text(namePtr, nameLen);
             const blob = new Blob([bytes(dataPtr, dataLen).slice()], { type: text(mimePtr, mimeLen) });
@@ -229,5 +279,5 @@
         }
     }
 
-    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 4 });
+    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 5 });
 })();
