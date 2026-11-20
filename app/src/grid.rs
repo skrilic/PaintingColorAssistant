@@ -1,4 +1,5 @@
-//! Composition overlays drawn over the picture: rule of thirds, Fibonacci spiral, square grid.
+//! Composition overlays drawn over the picture: rule of thirds, golden ratio grid,
+//! Fibonacci spiral, square grid.
 
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -9,10 +10,13 @@ pub enum Overlay {
     Thirds,
     Fibonacci,
     Grid,
+    /// Phi grid: lines at 1/phi^2 and 1/phi of the width and height.
+    Golden,
 }
 
 impl Overlay {
-    pub const ALL: [Overlay; 4] = [Overlay::None, Overlay::Thirds, Overlay::Fibonacci, Overlay::Grid];
+    /// Order of the overlay buttons.
+    pub const ALL: [Overlay; 5] = [Overlay::None, Overlay::Thirds, Overlay::Golden, Overlay::Fibonacci, Overlay::Grid];
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
@@ -59,6 +63,21 @@ pub fn draw_overlay(r: Rect, s: &OverlaySettings, label: &dyn Fn(&str, f32, f32,
                 for j in 1..3 {
                     let p = vec2(r.x + r.w * i as f32 / 3.0, r.y + r.h * j as f32 / 3.0);
                     draw_circle_lines(p.x, p.y, 7.0, 1.5, c);
+                }
+            }
+        }
+        Overlay::Golden => {
+            // 0.382 and 0.618: the picture split so the larger part relates to the smaller as the whole to the larger
+            let cuts = [1.0 - 1.0 / PHI, 1.0 / PHI];
+            for t in cuts {
+                let x = r.x + r.w * t;
+                let y = r.y + r.h * t;
+                line(x, r.y, x, r.y + r.h, 1.5, c);
+                line(r.x, y, r.x + r.w, y, 1.5, c);
+            }
+            for tx in cuts {
+                for ty in cuts {
+                    draw_circle_lines(r.x + r.w * tx, r.y + r.h * ty, 7.0, 1.5, c);
                 }
             }
         }

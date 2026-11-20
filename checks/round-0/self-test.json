@@ -31,9 +31,19 @@
       "step": "pick"
     },
     {
+      "detail": "hovering the clicked spot's match label shows the dE explanation: \"Colour match: excellent  (dE 2.1)\"",
+      "passed": true,
+      "step": "match_tooltip"
+    },
+    {
       "detail": "Fibonacci spiral drawn with 336 line segments",
       "passed": true,
       "step": "overlay_fibonacci"
+    },
+    {
+      "detail": "golden ratio grid drawn with 4 lines at 38.2% and 61.8%",
+      "passed": true,
+      "step": "overlay_golden"
     },
     {
       "detail": "grid drawn with 8 lines",
@@ -56,7 +66,7 @@
       "step": "contours_on_top"
     },
     {
-      "detail": "Export PDF wrote a 207 KB brochure with 5 pages and 4 pictures (original, values, contours, colour levels)",
+      "detail": "Export PDF wrote a 209 KB brochure with 5 pages and 4 pictures (original, values, contours, colour levels), ending with the match rating legend",
       "passed": true,
       "step": "export_pdf"
     },
@@ -69,6 +79,26 @@
       "detail": "switched to acrylic: palette \"Acrylic 1\", recipes recomputed, lighter colours use white paint",
       "passed": true,
       "step": "medium"
+    },
+    {
+      "detail": "the recent menu lists one picture and \"Clear recent list\"",
+      "passed": true,
+      "step": "recent_menu"
+    },
+    {
+      "detail": "picked \"painting-colour-assistant-selftest.png\" from the recent menu and it opened as \"painting-colour-assistant-selftest.png\" (list kept in memory only)",
+      "passed": true,
+      "step": "open_recent"
+    },
+    {
+      "detail": "after each change the picture's settings are kept in the recent list",
+      "passed": true,
+      "step": "settings_kept"
+    },
+    {
+      "detail": "reopened the picture with its own settings: Value levels view, 3 value levels, Grid overlay, crop Some((60, 40, 300, 240)), clicked spot restored",
+      "passed": true,
+      "step": "settings_restored"
     }
   ],
   "version": 1

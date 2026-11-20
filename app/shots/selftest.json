@@ -41,6 +41,11 @@
       "step": "overlay_fibonacci"
     },
     {
+      "detail": "golden ratio grid drawn with 4 lines at 38.2% and 61.8%",
+      "passed": true,
+      "step": "overlay_golden"
+    },
+    {
       "detail": "grid drawn with 8 lines",
       "passed": true,
       "step": "overlay_grid"

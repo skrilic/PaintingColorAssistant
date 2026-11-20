@@ -89,8 +89,9 @@ its masstone colour (full strength), its transparency and its tinting strength.
 
 | What | Value | Source |
 |---|---|---|
-| Kinds | None, Rule of thirds, Fibonacci spiral, Grid | request |
+| Kinds | None, Rule of thirds, Golden ratio, Fibonacci spiral, Grid | request |
 | Rule of thirds | lines at 1/3 and 2/3, rings (7 px) at the four crossings | estimated |
+| Golden ratio grid | lines at 1/phi^2 = 0.382 and 1/phi = 0.618 of width and height, rings (7 px) at the four crossings | request (golden ratio grid); drawing estimated |
 | Fibonacci spiral | rectangles cut at 1/phi (phi = 1.618034) of the side, 12 steps, quarter-ellipse arcs, stretched to the picture; portrait pictures start with a horizontal cut; mirror sideways / up-down | estimated |
 | Grid | square cells, default 6 on the long side, range 2 to 20, optional diagonals, column letters and row numbers | estimated |
 | Line colour | White, Black, Red; strength 0.15 to 1.0, default 0.8 | estimated |

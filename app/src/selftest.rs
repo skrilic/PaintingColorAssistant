@@ -165,6 +165,12 @@ impl SelfTest {
             let ok = app.overlay.kind == Overlay::Fibonacci && app.overlay_segments > 20;
             res(r, "overlay_fibonacci", ok, format!("Fibonacci spiral drawn with {} line segments", app.overlay_segments));
         })));
+        q.push_back(Click("overlay_golden"));
+        q.push_back(Wait(2));
+        q.push_back(Check(Box::new(|app, _ui, r| {
+            let ok = app.overlay.kind == Overlay::Golden && app.overlay_segments == 4;
+            res(r, "overlay_golden", ok, format!("golden ratio grid drawn with {} lines at 38.2% and 61.8%", app.overlay_segments));
+        })));
         q.push_back(Click("overlay_grid"));
         q.push_back(Wait(2));
         q.push_back(Check(Box::new(|app, _ui, r| {

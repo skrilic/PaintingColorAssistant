@@ -1,5 +1,5 @@
 {
-  "revision": 7,
+  "revision": 8,
   "brief": {
     "question": "Build a desktop painting colour assistant: open an image, crop it, view a greyscale value study with N levels, a colour-reduced version with N levels, overlay a composition grid (rule of thirds, Fibonacci spiral, square grid), and for each reduced colour compute a Kubelka-Munk mixing recipe from a user-defined pigment palette (watercolor / acrylic / oil, with transparency per paint).",
     "purpose": "Tool for an artist planning a painting; no original program to match, built from the request alone.",
@@ -41,6 +41,6 @@
   ],
   "hypotheses": [],
   "findings": [],
-  "handoff": "Turns so far: first build; contours view + \"Lines on top\"; value-box percentage caption/tooltip; now Export PDF. New: src/pdf.rs (hand-written PDF writer: JPEG DCTDecode images, rects/circles/lines, Helvetica/Helvetica-Bold with AFM widths, WinAnsi text), src/app/export.rs (A4 brochure: cover with original + settings; value study + scale + contours same size; palette table + 1:1 mixing chart + lightening steps; colour-levels picture + recipe per level with chosen paints-per-mix + clicked spot). Top-bar button id export_pdf uses rfd save dialog (name + folder, .pdf appended), App::export_path_override for self-test (temp dir). Self-test step export_pdf (14/14 pass). Rendered pages checked via swift PDFKit script (/tmp/pdfpages/render.swift; poppler not installed). km describe_lighten: load>=0.9 -> \"water: full strength, very little water\". Docs updated: MECHANICS.md, mechanics.json, README.md, CLAUDE.md (architecture line). Not committed. The save dialog itself wasn't exercised by hand.",
-  "updated": "2026-11-18T08:55:17Z"
+  "handoff": "Latest turn: added Overlay::Golden (phi grid, lines at 0.382/0.618 with rings at crossings), appended at the END of the Overlay enum because OverlaySettings is serialised in recent.json (recent.rs added by the user since last turn). Button id overlay_golden (+ tooltip id overlay_golden_tip), overlay buttons are now a 3-row 2-column grid (Overlay::ALL order: None, Thirds, Golden, Fibonacci, Grid). Self-test step overlay_golden; 20/20 steps pass. Docs updated: MECHANICS.md, mechanics.json, README.md, CLAUDE.md (grid.rs line). Not committed. Earlier: PDF export (pdf.rs, app/export.rs), contours, value-scale caption.",
+  "updated": "2026-11-19T23:20:00Z"
 }

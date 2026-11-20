@@ -20,7 +20,8 @@ Kubelka-Munk mixing recipes for every colour, made from the paints in your own p
   contours: a line drawing of the picture's edges with adjustable detail, which can also
   be drawn on top of any other view.
 - **Crop** – free or fixed aspect ratios (1:1, 4:5, 3:4, 2:3, 5:4, 4:3, 3:2, 16:9), with undo.
-- **Composition overlays** – rule of thirds, Fibonacci spiral (mirrorable) or a square grid
+- **Composition overlays** – rule of thirds, golden ratio grid (lines at 38.2% and 61.8%),
+  Fibonacci spiral (mirrorable) or a square grid
   with optional diagonals and cell labels.
 - **Recently opened** – the arrow beside *Open picture...* lists the last 10 pictures,
   so you can go back to an earlier painting in one click. Each picture remembers its own

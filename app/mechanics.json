@@ -369,7 +369,7 @@
     {
       "name": "overlays",
       "group": "overlay",
-      "value": "None, Rule of thirds, Fibonacci spiral, Grid",
+      "value": "None, Rule of thirds, Golden ratio, Fibonacci spiral, Grid",
       "source": "request"
     },
     {
@@ -377,6 +377,13 @@
       "group": "overlay",
       "value": 1.618034,
       "estimated": true
+    },
+    {
+      "name": "golden ratio grid lines",
+      "group": "overlay",
+      "value": "0.382, 0.618",
+      "unit": "fraction of width and height",
+      "source": "request"
     },
     {
       "name": "fibonacci steps",

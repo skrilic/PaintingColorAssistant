@@ -68,7 +68,8 @@ cargo run -- <image path>                     # open with a picture
   stores the open picture's settings each frame no mouse button is held, and in `set_image`
   before switching; `open_path` restores them. A new per-picture setting goes in
   `PictureSettings`, `App::picture_settings` and `App::apply_settings`.
-- `grid.rs` – rule of thirds, Fibonacci spiral, square grid overlays.
+- `grid.rs` – rule of thirds, golden ratio (phi) grid, Fibonacci spiral, square grid overlays.
+  `Overlay` is serialised in `recent.json`: add new kinds at the end of the enum.
 - `pdf.rs` – minimal PDF writer (JPEG images, shapes, Helvetica text with built-in widths).
   `app/export.rs` lays out the reference brochure; "Export PDF" uses the rfd save dialog,
   or `App::export_path_override` (set to a temp file by the self-test).

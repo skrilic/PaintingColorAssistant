@@ -7,9 +7,9 @@
   },
   "stack": "Rust + macroquad",
   "status": "ready",
-  "note": "Ready: 3 of 4 checks pass, 14 of 14 claims hold; 1 comparison remains unverified. 2 questions about the original are still open.",
+  "note": "Ready: 3 of 4 checks pass, 20 of 20 claims hold; 1 comparison remains unverified. 2 questions about the original are still open.",
   "created_ms": 1794904323335,
-  "updated_ms": 1794992121966,
+  "updated_ms": 1795130402895,
   "checks": [
     {
       "round": 1,
@@ -386,6 +386,131 @@
       "unknowns": [
         "Mechanics behavior has not been measured against app/mechanics.json."
       ]
+    },
+    {
+      "round": 5,
+      "check": "build",
+      "passed": true,
+      "similarity": null,
+      "note": "Build succeeded.",
+      "artifacts": [],
+      "at_ms": 1795130389519
+    },
+    {
+      "round": 5,
+      "check": "app-screenshot",
+      "passed": true,
+      "similarity": null,
+      "note": "The program starts and draws (1400×880).",
+      "artifacts": [
+        "checks/round-0/screenshot.png"
+      ],
+      "at_ms": 1795130392298
+    },
+    {
+      "round": 5,
+      "check": "game-self-test",
+      "passed": true,
+      "similarity": null,
+      "note": "The self-test plays the core loop: move (dragged a crop frame over the picture: 1200x800 became 720x480 (60% x 60% of the original)), act (10 colour levels, 10 Kubelka-Munk recipes from the palette, mean colour difference dE 3.0), hud (value scale, level counts, palette, clicked-spot recipe, recipe list and rule-of-thirds overlay are drawn).",
+      "artifacts": [
+        "checks/round-0/self-test.json"
+      ],
+      "at_ms": 1795130397027,
+      "claims": [
+        {
+          "title": "In play, the player moves",
+          "passed": true
+        },
+        {
+          "title": "In play, the player's main action works",
+          "passed": true
+        },
+        {
+          "title": "In play, the on-screen information is drawn",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"value_shares\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"values\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"mixing\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"pick\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"match_tooltip\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"overlay_fibonacci\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"overlay_golden\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"overlay_grid\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"contours\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"contours_on_top\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"export_pdf\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"palette\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"medium\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"recent_menu\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"open_recent\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"settings_kept\"",
+          "passed": true
+        },
+        {
+          "title": "Self-test step \"settings_restored\"",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "round": 5,
+      "check": "mechanics",
+      "passed": true,
+      "similarity": null,
+      "note": "app/mechanics.json has 74 values (16 with a source, 58 estimated). The sheet is readable; its behavior is unverified. No runtime measurement was compared with these values. A source literal or a core-loop self-test alone cannot establish that the build uses them.",
+      "artifacts": [],
+      "at_ms": 1795130397037,
+      "unknowns": [
+        "Mechanics behavior has not been measured against app/mechanics.json."
+      ]
     }
   ],
   "agent_session": "cc170540-effa-4339-a5a7-5c1f214fbba4",
@@ -393,7 +518,7 @@
   "agent_session_deep": false,
   "capture_deep": false,
   "allowed_actions": [],
-  "last_reply": "I'm writing a small built-in PDF writer, so no new dependency is needed. It supports images, text, swatches and pages.Now the brochure layout and the export button.Export works in the self-test (5 pages). Let me look at the brochure itself.The brochure looks right now; the clicked-spot row moves to a fifth page when the mixes fill page 4. Checking the new button in the app and updating the docs.There is now an **Export PDF...** button at the top right of the app. It asks you for a file name and folder, then saves a reference brochure. The brochure has:\n- a cover with the original picture and your settings\n- the value levels picture with its percentages, plus the contour drawing at the same size\n- the chosen palette with its paints and mixing chart\n- a recipe for every colour, using the paints-per-mix you picked (1, 2 or 3)\n\nIt builds, I checked all five pages, and all 14 self-test steps pass, including a new export check. The save window wasn't tried by hand, because the self-test saves to a temporary file instead. I also added the new feature to the README and the project notes file outside the app folder.",
+  "last_reply": "Adding a golden-ratio grid: lines at 0.382 and 0.618 of the width and height (the \"phi grid\").All 20 self-test steps pass. Checking the left panel layout in a screenshot.Looks right. Updating the docs and running the check.There's a new **Golden ratio** button with the other overlay choices. It draws the golden-ratio grid: lines at 38.2% and 61.8% of the picture's width and height, with circles where they cross. Pointing at the button shows a short explanation. It builds, I checked it in a screenshot, all 20 self-test steps pass (including a new golden-ratio check), and the README and notes files mention it.",
   "asset_budget_usd": 5.0,
   "generate_assets": false
 }

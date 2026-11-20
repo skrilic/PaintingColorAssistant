@@ -139,15 +139,24 @@ impl App {
 
         ui.header("OVERLAY", x, y);
         y += 10.0;
-        let ids = ["overlay_none", "overlay_thirds", "overlay_fib", "overlay_grid"];
-        let short = ["None", "Rule of thirds", "Fibonacci", "Grid"];
+        let ids = ["overlay_none", "overlay_thirds", "overlay_golden", "overlay_fib", "overlay_grid"];
+        let short = ["None", "Rule of thirds", "Golden ratio", "Fibonacci", "Grid"];
         for (i, k) in Overlay::ALL.iter().enumerate() {
             let br = Rect::new(x + (i % 2) as f32 * (half + 6.0), y + (i / 2) as f32 * 32.0, half, 28.0);
             if ui.button_ex(ids[i], br, short[i], self.overlay.kind == *k) {
                 self.overlay.kind = *k;
             }
+            if *k == Overlay::Golden {
+                ui.tooltip("overlay_golden_tip", br, || {
+                    vec![
+                        ("Golden ratio grid (phi grid)".to_string(), TEXT),
+                        ("Lines at 38.2% and 61.8% of the width and height:".to_string(), MUTED),
+                        ("a tighter, calmer placement than the rule of thirds.".to_string(), MUTED),
+                    ]
+                });
+            }
         }
-        y += 70.0;
+        y += 102.0;
         match self.overlay.kind {
             Overlay::Grid => {
                 ui.text("Cells on the long side", x, y + 4.0, 14.0, TEXT);
