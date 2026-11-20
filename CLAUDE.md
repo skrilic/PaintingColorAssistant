@@ -96,7 +96,10 @@ python3 -m http.server -d target/web 8080     # serve it locally
   45-pigment `LIBRARY`, JSON persistence through `storage.rs`. `recent.rs` – recently opened
   pictures with their `PictureSettings` (`recent.json` beside `palettes.json`). `App`
   stores the open picture's settings each frame no mouse button is held, and in `set_image`
-  before switching; `open_path` restores them. A new per-picture setting goes in
+  before switching; `open_path` restores them. The web build keys its pictures as
+  `browser-<hash>/<name>` (`recent::browser_key`) and keeps copies of those in the menu in
+  IndexedDB (pca.js `pca_picture_store` / `pca_pictures_keep` / `pca_picture_load`); a
+  picture opened from the menu comes back through `web::take_picture` (empty when gone). A new per-picture setting goes in
   `PictureSettings`, `App::picture_settings` and `App::apply_settings`.
 - `storage.rs` – named JSON texts: files in `dirs::config_dir()/PaintingColorAssistant/` on
   the desktop, `localStorage` keys `PaintingColorAssistant/<name>` on the web.

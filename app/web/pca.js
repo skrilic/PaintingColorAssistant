@@ -80,6 +80,29 @@
         return input;
     }
 
+    // ---------- copies of recently opened pictures ----------
+
+    // A browser cannot open a file again by its path, so the app keeps a copy of each picture
+    // in its recent menu here, under the picture's key in the recent list.
+    let pictureDb = null;
+
+    function pictures(mode, use) {
+        if (pictureDb == null) {
+            pictureDb = new Promise((resolve, reject) => {
+                const open = indexedDB.open("PaintingColorAssistant", 1);
+                open.onupgradeneeded = () => open.result.createObjectStore("pictures");
+                open.onsuccess = () => resolve(open.result);
+                open.onerror = () => reject(open.error);
+            });
+        }
+        return pictureDb.then((db) => new Promise((resolve, reject) => {
+            const tx = db.transaction("pictures", mode);
+            const request = use(tx.objectStore("pictures"));
+            tx.oncomplete = () => resolve(request ? request.result : undefined);
+            tx.onerror = tx.onabort = () => reject(tx.error);
+        }));
+    }
+
     // ---------- text fields ----------
 
     // Each text field of the app gets a real input placed over it, see-through until it has
@@ -207,6 +230,27 @@
         env.pca_open_picture = () => runInGesture("Choose a picture", () => chooser().click());
         env.pca_picture_len = () => (picture == null ? -1 : picture.data.length);
         env.pca_picture_name_len = () => (picture == null ? 0 : picture.name.length);
+        env.pca_picture_store = (keyPtr, keyLen, dataPtr, dataLen) => {
+            const key = text(keyPtr, keyLen);
+            const data = bytes(dataPtr, dataLen).slice();
+            pictures("readwrite", (store) => store.put(data, key)).catch(() => {
+                // storage full or turned off: the picture is just not in the menu next time
+            });
+        };
+        env.pca_pictures_keep = (keysPtr, keysLen) => {
+            const keep = new Set(text(keysPtr, keysLen).split("\n"));
+            pictures("readwrite", (store) => {
+                const all = store.getAllKeys();
+                all.onsuccess = () => all.result.filter((k) => !keep.has(k)).forEach((k) => store.delete(k));
+            }).catch(() => {});
+        };
+        env.pca_picture_load = (keyPtr, keyLen, namePtr, nameLen) => {
+            const key = text(keyPtr, keyLen);
+            const name = bytes(namePtr, nameLen).slice();
+            pictures("readonly", (store) => store.get(key))
+                .catch(() => undefined)
+                .then((data) => { picture = { name, data: data instanceof Uint8Array ? data : new Uint8Array(0) }; });
+        };
         env.pca_picture_take = (dataPtr, namePtr) => {
             if (picture == null) return;
             bytes(dataPtr, picture.data.length).set(picture.data);
@@ -279,5 +323,5 @@
         }
     }
 
-    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 5 });
+    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 6 });
 })();

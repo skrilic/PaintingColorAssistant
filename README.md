@@ -104,7 +104,9 @@ next start after a new version is published.
 
 In the browser, *Open picture...* uses the browser's file chooser (on phones and tablets:
 photos, camera or files), *Export PDF...* downloads the brochure, and palettes are kept in
-the browser's local storage. The recently opened list is not available there yet.
+the browser's local storage. A browser cannot open a file again by its path, so the web app
+keeps a copy of each picture in its recently opened list (the last 10) in the browser's
+IndexedDB; *Clear recent list* deletes them.
 
 On a narrow screen (a phone, or a tablet held upright) the app shows one pane at a time,
 chosen in a bar under the top bar: *Picture*, *Adjust* and *Recipes* on the Painting

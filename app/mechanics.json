@@ -481,7 +481,7 @@
       "group": "window",
       "value": 84,
       "unit": "px",
-      "note": "panel narrower than 380 px",
+      "note": "panel narrower than 380 px, or a recipe that does not fit on one line",
       "estimated": true
     },
     {

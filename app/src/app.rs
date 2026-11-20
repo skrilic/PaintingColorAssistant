@@ -374,19 +374,25 @@ impl App {
             Ok(img) => {
                 let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
                 self.set_image(name.clone(), img);
-                self.picture_path = self.recent.add(path);
-                let saved = self.picture_path.as_deref().and_then(|k| self.recent.settings(k)).cloned();
-                match saved {
-                    Some(s) => {
-                        self.apply_settings(&s);
-                        self.say(format!("Opened {name} with its settings from last time"));
-                    }
-                    None => self.say(format!("Opened {name}")),
-                }
-                self.save_recent();
+                self.add_to_recent(path, &name);
             }
             Err(e) => self.say(format!("Could not open that picture: {e}")),
         }
+    }
+
+    /// Puts the picture just opened at the top of the recent list (under `key`) and restores
+    /// the settings it had last time.
+    fn add_to_recent(&mut self, key: &std::path::Path, name: &str) {
+        self.picture_path = self.recent.add(key);
+        let saved = self.picture_path.as_deref().and_then(|k| self.recent.settings(k)).cloned();
+        match saved {
+            Some(s) => {
+                self.apply_settings(&s);
+                self.say(format!("Opened {name} with its settings from last time"));
+            }
+            None => self.say(format!("Opened {name}")),
+        }
+        self.save_recent();
     }
 
     /// Menu of recently opened pictures, then "Clear recent list".
@@ -402,6 +408,13 @@ impl App {
     fn recent_menu_pick(&mut self, i: usize) {
         let shown = self.recent.shown().len();
         if let Some(path) = self.recent.shown().get(i).map(|p| p.path.clone()) {
+            // the web app's copy arrives a few frames later, like a chosen picture
+            #[cfg(target_arch = "wasm32")]
+            {
+                let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                crate::web::load_picture(&path.to_string_lossy(), &name);
+            }
+            #[cfg(not(target_arch = "wasm32"))]
             if path.is_file() {
                 self.open_path(&path);
             } else {
@@ -410,6 +423,8 @@ impl App {
         } else if i == shown && i > 0 {
             self.recent.clear();
             self.save_recent();
+            #[cfg(target_arch = "wasm32")]
+            crate::web::keep_pictures(&[]);
             self.say("Recent list and saved picture settings cleared");
         }
     }
@@ -480,12 +495,27 @@ impl App {
     }
 
     /// Opens a picture given as file contents (dropped in, or chosen in the web build).
+    /// The web app also adds it to the recent list and keeps a copy of it for that.
     pub fn open_bytes(&mut self, name: &str, bytes: &[u8]) {
+        let name = if name.is_empty() { "Picture".to_string() } else { name.to_string() };
+        #[cfg(target_arch = "wasm32")]
+        if bytes.is_empty() {
+            // a picture from the recent list whose copy the browser no longer has
+            self.say(format!("{name} is no longer kept in this browser; open it with Open picture..."));
+            return;
+        }
         match imgproc::load_bytes(bytes) {
             Ok(img) => {
-                let name = if name.is_empty() { "Picture".to_string() } else { name.to_string() };
                 self.set_image(name.clone(), img);
+                #[cfg(not(target_arch = "wasm32"))]
                 self.say(format!("Opened {name}"));
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let key = recent::browser_key(&name, bytes);
+                    self.add_to_recent(&key, &name);
+                    crate::web::store_picture(&key.to_string_lossy(), bytes);
+                    crate::web::keep_pictures(&self.recent.shown_keys());
+                }
             }
             Err(e) => self.say(format!("Could not open that picture: {e}")),
         }
@@ -831,6 +861,12 @@ fn recipe_text_wrapped(ui: &mut Ui, id: &str, m: &Mixer, rc: &Recipe, x: f32, y:
     let de = rc.de;
     ui.tooltip(id, Rect::new(x + w - mw - 3.0, ly - 13.0, mw + 6.0, 17.0), || match_tip(de));
     lines.len() + 1
+}
+
+/// Whether `recipe_text` shows `rc` whole in width `w`; if not, use `recipe_text_wrapped`.
+fn recipe_fits(ui: &Ui, m: &Mixer, rc: &Recipe, w: f32) -> bool {
+    let ml = format!("{}  (dE {:.1})", match_label(rc.de), rc.de);
+    ui.measure(&m.describe_parts(rc), 15.0) <= w && ui.measure(&m.describe_lighten(rc), 13.0) + ui.measure(&ml, 12.0) + 10.0 <= w
 }
 
 /// Recipe in two lines: paints and parts, then how much to lighten and how well it matches.

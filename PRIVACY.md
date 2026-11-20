@@ -16,7 +16,10 @@ entirely in your browser.
 - **Desktop app:** your palettes and the list of recently opened pictures (with each
   picture's settings) are saved as files in your user settings folder, in a folder named
   `PaintingColorAssistant`.
-- **Web app:** your palettes are saved in your browser's local storage on your device. The
+- **Web app:** your palettes and the list of recently opened pictures (with each picture's
+  settings) are saved in your browser's storage on your device. As a browser cannot open a
+  file again by itself, the web app also keeps a copy of the last 10 pictures you opened
+  there, so you can open them from the list again; *Clear recent list* deletes them. The
   app's own files are kept by the browser so it can start without a network connection.
 
 You can delete this data at any time: remove the settings folder (desktop), or clear the

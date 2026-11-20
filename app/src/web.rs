@@ -2,7 +2,7 @@
 //! data and checking for updates, implemented in `web/pca.js` (a miniquad plugin).
 
 /// Must equal `version` in web/pca.js; miniquad logs a mismatch in the console.
-const PLUGIN_VERSION: u32 = 5;
+const PLUGIN_VERSION: u32 = 6;
 
 #[link(wasm_import_module = "env")]
 unsafe extern "C" {
@@ -35,6 +35,9 @@ unsafe extern "C" {
     fn pca_update_len() -> i32;
     fn pca_update_take(out: *mut u8);
     fn pca_reload_app();
+    fn pca_picture_store(key: *const u8, key_len: usize, data: *const u8, data_len: usize);
+    fn pca_pictures_keep(keys: *const u8, keys_len: usize);
+    fn pca_picture_load(key: *const u8, key_len: usize, name: *const u8, name_len: usize);
 }
 
 /// Read by miniquad's plugin loader to check that web/pca.js matches this build.
@@ -66,6 +69,24 @@ pub fn take_picture() -> Option<(String, Vec<u8>)> {
     let mut name = vec![0u8; unsafe { pca_picture_name_len() }.max(0) as usize];
     unsafe { pca_picture_take(data.as_mut_ptr(), name.as_mut_ptr()) };
     Some((String::from_utf8_lossy(&name).into_owned(), data))
+}
+
+/// Keeps a copy of a picture in the browser (IndexedDB) under `key`, its key in the recent
+/// list, so it can be opened from there again.
+pub fn store_picture(key: &str, data: &[u8]) {
+    unsafe { pca_picture_store(key.as_ptr(), key.len(), data.as_ptr(), data.len()) }
+}
+
+/// Deletes the kept copies of all pictures but those under `keys`.
+pub fn keep_pictures(keys: &[String]) {
+    let keys = keys.join("\n");
+    unsafe { pca_pictures_keep(keys.as_ptr(), keys.len()) }
+}
+
+/// Reads the copy kept under `key`; it arrives through `take_picture` named `name`, with no
+/// bytes when the browser no longer has it.
+pub fn load_picture(key: &str, name: &str) {
+    unsafe { pca_picture_load(key.as_ptr(), key.len(), name.as_ptr(), name.len()) }
 }
 
 /// Hands `data` to the browser as a download named `name`.

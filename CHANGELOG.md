@@ -2,6 +2,14 @@
 
 What changed in each version of Painting Colour Assistant. The newest version is at the top.
 
+## Unreleased
+
+- **Recently opened pictures in the web app.** The arrow beside *Open picture...* now lists
+  the last 10 pictures there too, each with its settings. The web app keeps a copy of
+  them in the browser on your device; *Clear recent list* deletes them.
+- **Whole recipes in a wide window.** A recipe with long paint names no longer gets cut
+  off in the recipe list or under *Clicked spot*: it takes two lines, as on a phone.
+
 ## 0.3.1 – 20 November 2026
 
 - **Open picture works in Safari and on iPhone and iPad.** In the web app the button did

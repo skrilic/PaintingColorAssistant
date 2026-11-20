@@ -634,9 +634,11 @@ impl App {
             self.draw_tip(ui, tip);
             return;
         };
-        // narrow panel (phone): taller rows, the paints may wrap to a second line
-        let narrow = bw < 380.0;
-        let row_h = if narrow { RECIPE_ROW_H_NARROW } else { RECIPE_ROW_H };
+        // Taller rows, where the paints may wrap to a second line: always on a narrow panel
+        // (phone), on a wide one when any recipe does not fit on one line.
+        let tw = bw - 64.0;
+        let wrap = bw < 380.0 || self.recipes.iter().flatten().any(|rc| !recipe_fits(ui, m, rc, tw));
+        let row_h = if wrap { RECIPE_ROW_H_NARROW } else { RECIPE_ROW_H };
         let visible = ((list.h - 4.0) / row_h).floor().max(1.0) as usize;
         let max_scroll = total.saturating_sub(visible);
         let rows = ui.scroll_rows(list, row_h, 1);
@@ -662,8 +664,7 @@ impl App {
                     let tx = sx + 62.0;
                     let info = format!("{}.   {:.0}% of the picture   value {}/{}", i + 1, c.share[i] * 100.0, value_no, nvals);
                     ui.text(&info, tx, rr.y + 17.0, 12.0, MUTED);
-                    let tw = rr.w - (tx - rr.x) - 8.0;
-                    if narrow {
+                    if wrap {
                         recipe_text_wrapped(ui, &format!("recipe_match_{i}"), m, rc, tx, rr.y + 36.0, tw);
                     } else {
                         recipe_text(ui, &format!("recipe_match_{i}"), m, rc, tx, rr.y + 36.0, tw);
@@ -719,7 +720,7 @@ impl App {
             swatch(Rect::new(x, y, 44.0, 44.0), p.srgb);
             if let (Some(rc), Some(m)) = (&p.recipe, &self.mixer) {
                 swatch(Rect::new(x + 48.0, y, 44.0, 44.0), rc.srgb);
-                if Self::compact() {
+                if Self::compact() || !recipe_fits(ui, m, rc, bw - 104.0) {
                     recipe_text_wrapped(ui, "picked_match", m, rc, x + 100.0, y + 12.0, bw - 100.0);
                 } else {
                     recipe_text(ui, "picked_match", m, rc, x + 104.0, y + 16.0, bw - 104.0);

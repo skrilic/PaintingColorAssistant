@@ -1,6 +1,7 @@
 //! Recently opened pictures, newest first, with each picture's settings (crop, views,
 //! overlay, paints), saved next to the palettes. The menu shows the newest `RECENT_MAX`;
-//! settings are kept for the newest `REMEMBER_MAX`.
+//! settings are kept for the newest `REMEMBER_MAX`. The web app cannot open a file again by
+//! its path, so it keeps a copy of each picture in the menu (see `browser_key`).
 
 use crate::app::View;
 use crate::grid::OverlaySettings;
@@ -63,6 +64,12 @@ impl Recent {
         Some(path)
     }
 
+    /// Keys of the pictures in the menu, as text (the web app keeps a copy of these).
+    #[cfg(target_arch = "wasm32")]
+    pub fn shown_keys(&self) -> Vec<String> {
+        self.shown().iter().filter_map(|p| p.path.to_str().map(str::to_string)).collect()
+    }
+
     /// The pictures shown in the menu, newest first.
     pub fn shown(&self) -> &[RecentPicture] {
         &self.pictures[..self.pictures.len().min(RECENT_MAX)]
@@ -89,10 +96,22 @@ impl Recent {
     }
 }
 
+/// Key in the recent list of a picture opened in the web app: "browser-<hash>/<file name>",
+/// the hash (64-bit FNV-1a) of its contents telling apart pictures of the same name.
+#[cfg(any(target_arch = "wasm32", test))]
+pub fn browser_key(name: &str, bytes: &[u8]) -> PathBuf {
+    let hash = bytes.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3));
+    PathBuf::from(format!("browser-{hash:016x}")).join(name.replace(['/', '\\'], "_"))
+}
+
 /// Menu text for a recent picture: file name, a tab, then where it is
-/// (the last two folders, or "not found" when the file is gone).
+/// (the last two folders, or "not found" when the file is gone). The web app shows the
+/// name only: it keeps its own copy of the picture.
 pub fn menu_label(path: &Path) -> String {
     let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string_lossy().to_string());
+    if cfg!(target_arch = "wasm32") {
+        return name;
+    }
     if !path.is_file() {
         return format!("{name}\tnot found");
     }
@@ -183,5 +202,16 @@ mod tests {
         let here = std::env::current_exe().unwrap();
         let label = menu_label(&here);
         assert!(label.contains('\t') && !label.ends_with("not found"), "{label}");
+    }
+
+    #[test]
+    fn browser_keys_tell_pictures_apart() {
+        let a = browser_key("IMG_1.jpeg", b"one picture");
+        assert_eq!(a, browser_key("IMG_1.jpeg", b"one picture"));
+        assert_ne!(a, browser_key("IMG_1.jpeg", b"another picture"));
+        assert_eq!(a.file_name().unwrap(), "IMG_1.jpeg");
+        assert_eq!(browser_key("a/b.png", b"x").file_name().unwrap(), "a_b.png");
+        let mut r = Recent::default();
+        assert_eq!(r.add(&a).as_deref(), Some(a.as_path()));
     }
 }
