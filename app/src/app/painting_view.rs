@@ -64,7 +64,7 @@ impl App {
             }
         } else {
             let ow = (bw * 0.42).round();
-            if ui.button("open_image", Rect::new(x, y, ow, row_h), "Open picture...") {
+            if ui.picture_button("open_image", Rect::new(x, y, ow, row_h), "Open picture...") {
                 self.open_dialog();
             }
             let menu = Rect::new(x + ow + 4.0, y, 32.0, row_h);
@@ -105,7 +105,7 @@ impl App {
         ui.header("PICTURE", x, y);
         y += 10.0;
         let open = Rect::new(x, y, bw - 38.0, 32.0);
-        if ui.button("open_image", open, "Open picture...") {
+        if ui.picture_button("open_image", open, "Open picture...") {
             self.open_dialog();
         }
         let menu = Rect::new(x + bw - 32.0, y, 32.0, 32.0);

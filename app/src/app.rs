@@ -347,7 +347,8 @@ impl App {
     }
 
     /// "Open picture": the native file dialog; in the web build the browser's chooser, whose
-    /// picture arrives a few frames later (main loop, `web::take_picture`).
+    /// picture arrives a few frames later (main loop, `web::take_picture`). There a click on
+    /// the button itself normally reaches the browser's file input (`Ui::picture_button`).
     fn open_dialog(&mut self) {
         #[cfg(target_arch = "wasm32")]
         crate::web::open_picture();

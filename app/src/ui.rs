@@ -198,7 +198,7 @@ impl Ui {
             self.draw_tooltip(t);
         }
         #[cfg(target_arch = "wasm32")]
-        crate::web::text_fields_end();
+        crate::web::frame_end();
     }
 
     fn draw_tooltip(&self, t: &Tooltip) {
@@ -388,6 +388,16 @@ impl Ui {
 
     pub fn button(&mut self, id: &str, r: Rect, label: &str) -> bool {
         self.button_ex(id, r, label, false)
+    }
+
+    /// "Open picture" button. In the browser the file input lies over it (see
+    /// `web::picture_button`); the click then goes to the browser, not to the app.
+    pub fn picture_button(&mut self, id: &str, r: Rect, label: &str) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        if r.y >= self.clip_top && self.popup.is_none() {
+            crate::web::picture_button(r);
+        }
+        self.button(id, r, label)
     }
 
     /// "Support on Ko-fi" button: a blue heart, then the label.

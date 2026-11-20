@@ -50,6 +50,30 @@
         .pca-field:focus {
             opacity: 1;
         }
+        /* Laid over "Open picture..." (see pca.js): a tap on it opens the file chooser. */
+        .pca-pick {
+            position: fixed;
+            display: none;
+            cursor: pointer;
+            border-radius: 5px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* The app no longer sees the mouse over the button, so the label lightens it the way
+           the app's hover does (PANEL2 to PANEL3). Only with a mouse: a touch leaves :hover on. */
+        @media (hover: hover) {
+            .pca-pick:hover {
+                background: rgba(255, 255, 255, 0.065);
+            }
+        }
+        .pca-file {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
         /* Asks for a tap when the browser needs one to open a file chooser or save a file. */
         .pca-sheet {
             position: fixed;

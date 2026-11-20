@@ -106,7 +106,11 @@ python3 -m http.server -d target/web 8080     # serve it locally
   each visible text field so phones show their keyboard; `Ui::text_field` reports its rect
   every frame and `Ui::end` hides the inputs of fields not drawn). When the browser no
   longer counts an action as the user's (`navigator.userActivation`), pca.js shows a small
-  sheet with a real button for one more tap. `rfd` and `dirs` are desktop-only
+  sheet with a real button for one more tap. WebKit (Safari, every iOS browser) opens a
+  file chooser only inside the click or tap handler itself, so pca.js always shows the
+  sheet there, and `Ui::picture_button` ("Open picture...") lays a see-through `<label>`
+  for the file input over the button each frame, so the tap goes straight to the browser.
+  `web::frame_end` (in `Ui::end`) hides the inputs and that label when not drawn. `rfd` and `dirs` are desktop-only
   dependencies; code using them is `cfg`-gated. Don't use `std::time::{Instant, SystemTime}`
   (they panic in wasm); use `miniquad::date::now()`. The web build embeds
   `assets/fonts/DejaVuSans.ttf`. Bump `PLUGIN_VERSION` in `web.rs` together with `version`

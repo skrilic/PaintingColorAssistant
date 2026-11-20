@@ -2,6 +2,12 @@
 
 What changed in each version of Painting Colour Assistant. The newest version is at the top.
 
+## Unreleased
+
+- **Open picture works in Safari and on iPhone and iPad.** In the web app the button did
+  nothing in Safari and in every browser on iOS. *Export PDF* and *Support on Ko-fi* there
+  now ask for one more tap instead of doing nothing.
+
 ## 0.3.0 – 20 November 2026
 
 - **Web app for phones, tablets and any browser.** Open it at

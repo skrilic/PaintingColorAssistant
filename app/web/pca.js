@@ -11,8 +11,13 @@
     // Browsers open a file chooser or start a download only shortly after a click or tap.
     // App buttons react when released, a frame later, which is normally still in time; when
     // the browser says it is not (navigator.userActivation), a small sheet with a real
-    // button asks for one more tap.
+    // button asks for one more tap. WebKit (Safari, and every browser on iOS) reports the
+    // click as recent but still refuses anything not done inside its event handler, so
+    // there the sheet is always shown.
+    const webkit = /^Apple/.test(navigator.vendor || "");
+
     function inTime() {
+        if (webkit) return false;
         const ua = navigator.userActivation;
         return ua ? ua.isActive : !window.matchMedia("(pointer: coarse)").matches;
     }
@@ -41,7 +46,12 @@
 
     // ---------- open a picture ----------
 
+    // A see-through label for the file input lies over "Open picture..." (pca_picture_button),
+    // so the click or tap itself opens the chooser, as WebKit requires. pca_open_picture is
+    // for the app asking at another time; it goes through the sheet when needed.
     let input = null;
+    let pick = null;
+    let pickSeen = false;
     let picture = null; // { name: Uint8Array, data: Uint8Array } until the app takes it
 
     function chooser() {
@@ -49,16 +59,23 @@
             input = document.createElement("input");
             input.type = "file";
             input.accept = "image/*";
-            input.style.display = "none";
+            input.id = "pca-file";
+            // hidden from view but not display: none, which some WebKit versions won't open
+            input.className = "pca-file";
             input.addEventListener("change", async () => {
                 const file = input.files[0];
                 input.value = "";
+                const canvas = document.getElementById("glcanvas");
+                if (canvas) canvas.focus();
                 if (file) {
                     const data = new Uint8Array(await file.arrayBuffer());
                     picture = { name: encoder.encode(file.name), data };
                 }
             });
-            document.body.appendChild(input);
+            pick = document.createElement("label");
+            pick.htmlFor = input.id;
+            pick.className = "pca-pick";
+            document.body.append(input, pick);
         }
         return input;
     }
@@ -127,7 +144,7 @@
             if (typedOut != null) bytes(outPtr, typedOut.length).set(typedOut);
             typedOut = null;
         };
-        env.pca_text_fields_end = () => {
+        env.pca_frame_end = () => {
             for (const [id, f] of fields) {
                 if (!seen.has(id) && f.el.style.display !== "none") {
                     if (document.activeElement === f.el) f.el.blur();
@@ -135,8 +152,19 @@
                 }
             }
             seen.clear();
+            if (!pickSeen && pick != null) pick.style.display = "none";
+            pickSeen = false;
         };
 
+        env.pca_picture_button = (x, y, w, h) => {
+            chooser();
+            pickSeen = true;
+            pick.style.display = "block";
+            pick.style.left = x + "px";
+            pick.style.top = y + "px";
+            pick.style.width = w + "px";
+            pick.style.height = h + "px";
+        };
         env.pca_open_picture = () => runInGesture("Choose a picture", () => chooser().click());
         env.pca_picture_len = () => (picture == null ? -1 : picture.data.length);
         env.pca_picture_name_len = () => (picture == null ? 0 : picture.name.length);
@@ -201,5 +229,5 @@
         }
     }
 
-    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 3 });
+    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 4 });
 })();

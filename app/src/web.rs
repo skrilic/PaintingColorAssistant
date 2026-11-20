@@ -2,11 +2,12 @@
 //! keeping data, implemented in `web/pca.js` (a miniquad plugin).
 
 /// Must equal `version` in web/pca.js; miniquad logs a mismatch in the console.
-const PLUGIN_VERSION: u32 = 3;
+const PLUGIN_VERSION: u32 = 4;
 
 #[link(wasm_import_module = "env")]
 unsafe extern "C" {
     fn pca_open_picture();
+    fn pca_picture_button(x: f32, y: f32, w: f32, h: f32);
     fn pca_picture_len() -> i32;
     fn pca_picture_name_len() -> i32;
     fn pca_picture_take(data: *mut u8, name: *mut u8);
@@ -28,7 +29,7 @@ unsafe extern "C" {
         placeholder_len: usize,
     ) -> i32;
     fn pca_text_field_take(out: *mut u8);
-    fn pca_text_fields_end();
+    fn pca_frame_end();
     fn pca_open_url(url: *const u8, url_len: usize);
 }
 
@@ -42,6 +43,13 @@ pub extern "C" fn pca_crate_version() -> u32 {
 /// picture arrives later through `take_picture`.
 pub fn open_picture() {
     unsafe { pca_open_picture() }
+}
+
+/// Places the browser's file input over the "Open picture" button at `r` (logical px = CSS
+/// px) for this frame. Safari and every browser on iOS open a file chooser only from the
+/// click or tap itself, so the button's own reaction a frame later would come too late.
+pub fn picture_button(r: macroquad::math::Rect) {
+    unsafe { pca_picture_button(r.x, r.y, r.w, r.h) }
 }
 
 /// The picture chosen with `open_picture`, once the browser has read it: (file name, bytes).
@@ -100,7 +108,7 @@ pub fn open_url(url: &str) {
     unsafe { pca_open_url(url.as_ptr(), url.len()) }
 }
 
-/// End of a frame: hides the inputs of text fields that were not drawn in it.
-pub fn text_fields_end() {
-    unsafe { pca_text_fields_end() }
+/// End of a frame: hides the inputs of text fields and buttons that were not drawn in it.
+pub fn frame_end() {
+    unsafe { pca_frame_end() }
 }
