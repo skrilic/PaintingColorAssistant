@@ -13,7 +13,6 @@ use crate::recent::{self, PictureSettings, Recent};
 use crate::ui::{self, BAD, BG, BORDER, GOOD, MUTED, PANEL, TEXT, Ui, WARN, col};
 use image::RgbImage;
 use macroquad::prelude::*;
-use std::time::Instant;
 
 pub const TOP_BAR: f32 = 52.0;
 pub const LEFT_W: f32 = 250.0;
@@ -329,12 +328,17 @@ impl App {
         self.cropping = true;
     }
 
+    /// "Open picture": the native file dialog; in the web build the browser's chooser, whose
+    /// picture arrives a few frames later (main loop, `web::take_picture`).
     fn open_dialog(&mut self) {
-        let file = rfd::FileDialog::new()
+        #[cfg(target_arch = "wasm32")]
+        crate::web::open_picture();
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(path) = rfd::FileDialog::new()
             .add_filter("Images", &["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"])
             .set_title("Open a picture")
-            .pick_file();
-        if let Some(path) = file {
+            .pick_file()
+        {
             self.open_path(&path);
         }
     }
@@ -449,9 +453,14 @@ impl App {
         }
     }
 
-    pub fn open_bytes(&mut self, bytes: &[u8]) {
+    /// Opens a picture given as file contents (dropped in, or chosen in the web build).
+    pub fn open_bytes(&mut self, name: &str, bytes: &[u8]) {
         match imgproc::load_bytes(bytes) {
-            Ok(img) => self.set_image("Dropped picture".into(), img),
+            Ok(img) => {
+                let name = if name.is_empty() { "Picture".to_string() } else { name.to_string() };
+                self.set_image(name.clone(), img);
+                self.say(format!("Opened {name}"));
+            }
             Err(e) => self.say(format!("Could not open that picture: {e}")),
         }
     }
@@ -525,11 +534,11 @@ impl App {
             if self.recipes.len() != c.lab.len() {
                 self.recipes = vec![None; c.lab.len()];
             }
-            let start = Instant::now();
+            let start = macroquad::miniquad::date::now();
             for i in 0..c.lab.len() {
                 if self.recipes[i].is_none() {
                     self.recipes[i] = m.find(c.lab[i], self.max_paints as usize, self.allow_lighten);
-                    if start.elapsed().as_secs_f64() * 1000.0 > RECIPE_BUDGET_MS {
+                    if (macroquad::miniquad::date::now() - start) * 1000.0 > RECIPE_BUDGET_MS {
                         break;
                     }
                 }

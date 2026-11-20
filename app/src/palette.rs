@@ -1,7 +1,6 @@
 //! Paint palettes the artist builds, the pigment library and saving to disk.
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Medium {
@@ -250,27 +249,18 @@ pub fn default_store() -> Store {
     Store { version: 1, palettes: vec![wc1, wc2, ac1, ac2, oil1] }
 }
 
-pub fn store_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("PaintingColorAssistant").join("palettes.json"))
-}
+/// Name of the saved palettes (see `storage`).
+const STORE_FILE: &str = "palettes.json";
 
 /// Loads saved palettes; the bool is true when nothing was saved yet (first start).
 pub fn load_store() -> (Store, bool) {
-    if let Some(path) = store_path() {
-        if let Ok(text) = std::fs::read_to_string(&path) {
-            if let Ok(store) = serde_json::from_str::<Store>(&text) {
-                return (store, false);
-            }
-        }
+    match crate::storage::read(STORE_FILE).and_then(|text| serde_json::from_str::<Store>(&text).ok()) {
+        Some(store) => (store, false),
+        None => (default_store(), true),
     }
-    (default_store(), true)
 }
 
 pub fn save_store(store: &Store) -> Result<(), String> {
-    let path = store_path().ok_or("no settings folder")?;
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-    }
     let text = serde_json::to_string_pretty(store).map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| e.to_string())
+    crate::storage::write(STORE_FILE, &text)
 }

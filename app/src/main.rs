@@ -13,7 +13,10 @@ mod palette;
 mod pdf;
 mod recent;
 mod selftest;
+mod storage;
 mod ui;
+#[cfg(target_arch = "wasm32")]
+mod web;
 
 use app::{App, View};
 use grid::Overlay;
@@ -80,6 +83,13 @@ fn window_icon() -> Option<Icon> {
     })
 }
 
+/// The web build has no system fonts to read, so it carries its own (see assets/fonts).
+#[cfg(target_arch = "wasm32")]
+fn load_font() -> Option<Font> {
+    load_ttf_font_from_bytes(include_bytes!("../assets/fonts/DejaVuSans.ttf")).ok()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn load_font() -> Option<Font> {
     let candidates = [
         "/System/Library/Fonts/Supplemental/Arial.ttf",
@@ -155,11 +165,20 @@ async fn run(args: Args) {
             Input { mouse: vec2(-100.0, -100.0), ..Default::default() }
         } else {
             for f in get_dropped_files() {
-                if let Some(p) = &f.path {
-                    app.open_path(p);
-                } else if let Some(b) = &f.bytes {
-                    app.open_bytes(b);
+                // A browser hands over the contents with just a file name as the path.
+                match (&f.path, &f.bytes) {
+                    (Some(p), _) if p.is_file() => app.open_path(p),
+                    (p, Some(b)) => {
+                        let name = p.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().to_string());
+                        app.open_bytes(name.as_deref().unwrap_or("Dropped picture"), b);
+                    }
+                    _ => continue,
                 }
+                app.screen = app::Screen::Painting;
+            }
+            #[cfg(target_arch = "wasm32")]
+            if let Some((name, bytes)) = web::take_picture() {
+                app.open_bytes(&name, &bytes);
                 app.screen = app::Screen::Painting;
             }
             Input::from_system()

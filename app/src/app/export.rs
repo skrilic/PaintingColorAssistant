@@ -24,7 +24,7 @@ fn rgba_to_rgb(rgba: &[u8], w: u32, h: u32) -> RgbImage {
 
 /// Today's date as "18 November 2026" (UTC).
 fn today() -> String {
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let secs = macroquad::miniquad::date::now().max(0.0) as u64;
     // civil-from-days (Howard Hinnant)
     let z = (secs / 86_400) as i64 + 719_468;
     let era = z.div_euclid(146_097);
@@ -170,14 +170,30 @@ impl App {
             self.say("Choose or create a palette first, then export the brochure");
             return;
         }
+        let stem = Path::new(&img.name).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "Picture".into());
+        let file_name = format!("{stem} - reference.pdf");
+        // The browser saves it as a download (to Downloads, or the share sheet on phones).
+        #[cfg(target_arch = "wasm32")]
+        if self.export_path_override.is_none() {
+            match self.brochure_bytes() {
+                Ok((bytes, pages)) => {
+                    crate::web::save_file(&file_name, "application/pdf", &bytes);
+                    self.say(format!("Saved \"{file_name}\" ({pages} pages)"));
+                }
+                Err(e) => self.say(format!("Could not make the PDF: {e}")),
+            }
+            return;
+        }
         let path = match &self.export_path_override {
             Some(p) => Some(p.clone()),
+            #[cfg(target_arch = "wasm32")]
+            None => None,
+            #[cfg(not(target_arch = "wasm32"))]
             None => {
-                let stem = Path::new(&img.name).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "Picture".into());
                 let mut dialog = rfd::FileDialog::new()
                     .set_title("Save the reference brochure")
                     .add_filter("PDF document", &["pdf"])
-                    .set_file_name(format!("{stem} - reference.pdf"));
+                    .set_file_name(file_name);
                 if let Some(dir) = &self.last_export_dir {
                     dialog = dialog.set_directory(dir);
                 }
@@ -202,6 +218,13 @@ impl App {
 
     /// Builds the brochure and writes it to `path`; returns the number of pages.
     pub fn export_pdf_to(&mut self, path: &Path) -> Result<usize, String> {
+        let (bytes, pages) = self.brochure_bytes()?;
+        std::fs::write(path, &bytes).map_err(|e| e.to_string())?;
+        Ok(pages)
+    }
+
+    /// Finishes the derived data the brochure needs, then builds it: (PDF bytes, pages).
+    fn brochure_bytes(&mut self) -> Result<(Vec<u8>, usize), String> {
         self.update_derived();
         // finish any recipes still being searched
         if let (Some(c), Some(m)) = (&self.colours, &self.mixer) {
@@ -220,9 +243,7 @@ impl App {
                 self.contours = Some(imgproc::contours(&img.analysis, w, h, self.contour_detail));
             }
         }
-        let bytes = self.brochure()?;
-        std::fs::write(path, &bytes.0).map_err(|e| e.to_string())?;
-        Ok(bytes.1)
+        self.brochure()
     }
 
     fn brochure(&self) -> Result<(Vec<u8>, usize), String> {

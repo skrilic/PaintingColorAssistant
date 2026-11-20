@@ -62,6 +62,21 @@ cargo run                       # start the app
 cargo run -- path/to/photo.jpg  # start with a picture open
 ```
 
+### Web version
+
+The same app also runs in a web browser (WebAssembly):
+
+```sh
+rustup target add wasm32-unknown-unknown
+cd app
+./web/build.sh                              # builds into target/web/
+python3 -m http.server -d target/web 8080   # then open http://localhost:8080
+```
+
+In the browser, *Open picture...* uses the browser's file chooser (on phones and tablets:
+photos, camera or files), *Export PDF...* downloads the brochure, and palettes are kept in
+the browser's local storage. The recently opened list is not available there yet.
+
 No system development packages are needed to build on Linux:
 [miniquad](https://github.com/not-fl3/miniquad) loads libX11/libXi/libGL (or the Wayland
 and EGL libraries) at runtime, and any desktop install already has them.

@@ -108,25 +108,17 @@ pub fn menu_label(path: &Path) -> String {
     format!("{name}\t{place}")
 }
 
-pub fn recent_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("PaintingColorAssistant").join("recent.json"))
-}
+/// Name of the saved list (see `storage`).
+const RECENT_FILE: &str = "recent.json";
 
 /// Saved list, or an empty one when there is none (or it cannot be read).
 pub fn load() -> Recent {
-    recent_path()
-        .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|t| serde_json::from_str(&t).ok())
-        .unwrap_or_default()
+    crate::storage::read(RECENT_FILE).and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
 }
 
 pub fn save(recent: &Recent) -> Result<(), String> {
-    let path = recent_path().ok_or("no settings folder")?;
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-    }
     let text = serde_json::to_string_pretty(recent).map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| e.to_string())
+    crate::storage::write(RECENT_FILE, &text)
 }
 
 #[cfg(test)]

@@ -5,12 +5,16 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-dirs = "7.0.0"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp", "bmp", "tiff"] }
 macroquad = "0.4"
-rfd = "0.18.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+
+# Desktop only: settings folder and native file dialogs. The web build (wasm32) keeps
+# its data in the browser and opens / saves files through web/pca.js.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+dirs = "7.0.0"
+rfd = "0.18.0"
 
 # Embeds the app icon and version info in the Windows .exe (see build.rs).
 [target.'cfg(windows)'.build-dependencies]

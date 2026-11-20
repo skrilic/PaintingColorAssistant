@@ -20,12 +20,17 @@ cargo run -- --self-test shots/selftest.json  # scripted end-to-end test
 cargo run -- --screenshot shots/now.png       # render sample landscape to PNG
 cargo run -- --palettes                       # open on the Palettes screen
 cargo run -- <image path>                     # open with a picture
+./web/build.sh                                # web build (wasm32) into target/web/
+python3 -m http.server -d target/web 8080     # serve it locally
 ```
 
 - The self-test always exits 0. Read the JSON: every step must have `"passed": true`.
 - `--screenshot` / `--self-test` open a real window and use `palette::default_store()`;
   they never read or write the user's `palettes.json` or `recent.json` (`App::persist` is false).
 - After UI changes, run both the self-test and a screenshot and look at the PNG.
+- The web build has no self-test or screenshot mode; check it in a browser. It needs
+  `rustup target add wasm32-unknown-unknown`. Keep both `cargo build` and
+  `cargo build --target wasm32-unknown-unknown` warning-free.
 
 ## Releases
 
@@ -63,11 +68,20 @@ cargo run -- <image path>                     # open with a picture
 - `imgproc.rs` – working copy capped at `WORK_MAX_SIDE`; crops apply to the full original.
   Colour levels = seeded k-means++ in Lab (deterministic).
 - `colour.rs` – sRGB/linear/Lab, CIE76 ΔE. `palette.rs` – `Paint`, `Palette`, `Store`,
-  45-pigment `LIBRARY`, JSON persistence in `dirs::config_dir()`. `recent.rs` – recently opened
+  45-pigment `LIBRARY`, JSON persistence through `storage.rs`. `recent.rs` – recently opened
   pictures with their `PictureSettings` (`recent.json` beside `palettes.json`). `App`
   stores the open picture's settings each frame no mouse button is held, and in `set_image`
   before switching; `open_path` restores them. A new per-picture setting goes in
   `PictureSettings`, `App::picture_settings` and `App::apply_settings`.
+- `storage.rs` – named JSON texts: files in `dirs::config_dir()/PaintingColorAssistant/` on
+  the desktop, `localStorage` keys `PaintingColorAssistant/<name>` on the web.
+- Web build (`target_arch = "wasm32"`): `web.rs` declares JS imports implemented in
+  `web/pca.js`, a miniquad plugin loaded after the vendored `gl.js` (open picture via
+  `<input type=file>`, PDF as a download, local storage). `rfd` and `dirs` are desktop-only
+  dependencies; code using them is `cfg`-gated. Don't use `std::time::{Instant, SystemTime}`
+  (they panic in wasm); use `miniquad::date::now()`. The web build embeds
+  `assets/fonts/DejaVuSans.ttf`. Bump `PLUGIN_VERSION` in `web.rs` together with `version`
+  in `pca.js` when the import list changes.
 - `grid.rs` – rule of thirds, golden ratio (phi) grid, Fibonacci spiral, square grid overlays.
   `Overlay` is serialised in `recent.json`: add new kinds at the end of the enum.
 - `pdf.rs` – minimal PDF writer (JPEG images, shapes, Helvetica text with built-in widths).
