@@ -2,7 +2,7 @@
 
 What changed in each version of Painting Colour Assistant. The newest version is at the top.
 
-## Unreleased
+## 0.3.2 – 20 November 2026
 
 - **Recently opened pictures in the web app.** The arrow beside *Open picture...* now lists
   the last 10 pictures there too, each with its settings. The web app keeps a copy of
