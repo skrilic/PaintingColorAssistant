@@ -3,7 +3,7 @@
 What changed in each version of PaletteCraft (called Painting Colour Assistant up to
 version 0.3.2). The newest version is at the top.
 
-## Unreleased
+## 0.4.0 – 21 November 2026
 
 - **New name: PaletteCraft.** The app, its downloads and its website have a new name and
   address: [skrilic.github.io/PaletteCraft](https://skrilic.github.io/PaletteCraft/).
