@@ -1,4 +1,4 @@
-//! Painting Colour Assistant: value and colour studies of a picture, composition overlays,
+//! PaletteCraft: value and colour studies of a picture, composition overlays,
 //! and Kubelka-Munk mixing recipes from the artist's own paint palettes.
 
 // Release builds on Windows open no console window next to the app.
@@ -73,7 +73,7 @@ impl Args {
 fn window_conf(size: Option<(i32, i32)>) -> Conf {
     let (window_width, window_height) = size.unwrap_or((1400, 880));
     Conf {
-        window_title: "Painting Colour Assistant".to_owned(),
+        window_title: "PaletteCraft".to_owned(),
         window_width,
         window_height,
         high_dpi: true,
@@ -81,7 +81,7 @@ fn window_conf(size: Option<(i32, i32)>) -> Conf {
         icon: window_icon(),
         platform: Platform {
             // Matches StartupWMClass in the Linux .desktop file, so desktops show the app icon.
-            linux_wm_class: "painting-colour-assistant",
+            linux_wm_class: "palettecraft",
             ..Default::default()
         },
         ..Default::default()
@@ -172,7 +172,7 @@ async fn run(args: Args) {
     let mut test = args.self_test.as_ref().map(|_| selftest::SelfTest::new());
     if test.is_some() {
         // The self-test presses "Export PDF"; save to a temporary file instead of asking.
-        app.export_path_override = Some(std::env::temp_dir().join("painting-colour-assistant-selftest.pdf"));
+        app.export_path_override = Some(std::env::temp_dir().join("palettecraft-selftest.pdf"));
         // A picture in the recent list (kept in memory only), for the "open recent" step.
         let recent_pic = std::env::temp_dir().join(selftest::RECENT_PICTURE);
         if imgproc::sample_landscape(600, 400).save(&recent_pic).is_ok() {

@@ -10,8 +10,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  APP: painting-colour-assistant
-  BIN: painting_color_assistant
+  APP: palettecraft
+  BIN: palettecraft
 
 defaults:
   run:
@@ -76,8 +76,8 @@ jobs:
           stage="$RUNNER_TEMP/$name"
           mkdir -p "$stage"
           cp "target/release/$BIN" "$stage/"
-          cp ../packaging/linux/painting-colour-assistant.desktop ../packaging/linux/install.sh "$stage/"
-          cp ../packaging/icon/icon-256.png "$stage/painting-colour-assistant.png"
+          cp ../packaging/linux/palettecraft.desktop ../packaging/linux/install.sh "$stage/"
+          cp ../packaging/icon/icon-256.png "$stage/palettecraft.png"
           cp ../README.md ../LICENSE-MIT ../LICENSE-APACHE "$stage/"
           tar -C "$RUNNER_TEMP" -czf "$DIST/$name.tar.gz" "$name"
 
@@ -89,7 +89,7 @@ jobs:
         run: |
           cargo build --release --locked --target aarch64-apple-darwin
           cargo build --release --locked --target x86_64-apple-darwin
-          app="$RUNNER_TEMP/Painting Colour Assistant.app"
+          app="$RUNNER_TEMP/PaletteCraft.app"
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
           lipo -create -output "$app/Contents/MacOS/$BIN" \
             "target/aarch64-apple-darwin/release/$BIN" \
@@ -108,7 +108,7 @@ jobs:
           name="$APP-$LABEL-windows-x86_64"
           stage="$RUNNER_TEMP/$name"
           mkdir -p "$stage"
-          cp "target/release/$BIN.exe" "$stage/Painting Colour Assistant.exe"
+          cp "target/release/$BIN.exe" "$stage/PaletteCraft.exe"
           cp ../README.md ../LICENSE-MIT ../LICENSE-APACHE "$stage/"
           (cd "$RUNNER_TEMP" && 7z a -tzip "$DIST/$name.zip" "$name")
 
@@ -152,7 +152,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" dist/* \
-            --title "Painting Colour Assistant $GITHUB_REF_NAME" \
+            --title "PaletteCraft $GITHUB_REF_NAME" \
             --notes-file packaging/release-notes.md \
             --generate-notes
 

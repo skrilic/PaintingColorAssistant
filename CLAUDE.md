@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Painting Colour Assistant: a Rust + macroquad desktop app that turns a reference picture
+PaletteCraft: a Rust + macroquad desktop app that turns a reference picture
 into value/colour studies, composition overlays and Kubelka-Munk mixing recipes from the
 user's paint palettes. See README.md for the feature overview.
 
@@ -61,7 +61,7 @@ python3 -m http.server -d target/web 8080     # serve it locally
   commit the generated `app/assets/*` and `packaging/icon/{AppIcon.icns,icon-256.png}`.
   `main.rs` embeds the PNGs as the window icon (a unit test checks they decode);
   `app/build.rs` embeds `assets/icon.ico` into the Windows .exe via `winresource`.
-- `Platform::linux_wm_class` ("painting-colour-assistant") must match `StartupWMClass`
+- `Platform::linux_wm_class` ("palettecraft") must match `StartupWMClass`
   in the `.desktop` file.
 - Linux builds need `libwayland-dev` + `pkg-config` (rfd links `libwayland-client`).
 - `main.rs` sets `windows_subsystem = "windows"` for release builds, so stdout/stderr
@@ -98,35 +98,35 @@ python3 -m http.server -d target/web 8080     # serve it locally
   stores the open picture's settings each frame no mouse button is held, and in `set_image`
   before switching; `open_path` restores them. The web build keys its pictures as
   `browser-<hash>/<name>` (`recent::browser_key`) and keeps copies of those in the menu in
-  IndexedDB (pca.js `pca_picture_store` / `pca_pictures_keep` / `pca_picture_load`); a
+  IndexedDB (palettecraft.js `pc_picture_store` / `pc_pictures_keep` / `pc_picture_load`); a
   picture opened from the menu comes back through `web::take_picture` (empty when gone). A new per-picture setting goes in
   `PictureSettings`, `App::picture_settings` and `App::apply_settings`.
-- `storage.rs` – named JSON texts: files in `dirs::config_dir()/PaintingColorAssistant/` on
-  the desktop, `localStorage` keys `PaintingColorAssistant/<name>` on the web.
+- `storage.rs` – named JSON texts: files in `dirs::config_dir()/PaletteCraft/` on
+  the desktop, `localStorage` keys `PaletteCraft/<name>` on the web.
 - Web build (`target_arch = "wasm32"`): `web.rs` declares JS imports implemented in
-  `web/pca.js`, a miniquad plugin loaded after the vendored `gl.js` (open picture via
+  `web/palettecraft.js`, a miniquad plugin loaded after the vendored `gl.js` (open picture via
   `<input type=file>`, PDF as a download, local storage, and a see-through `<input>` laid over
   each visible text field so phones show their keyboard; `Ui::text_field` reports its rect
   every frame and `Ui::end` hides the inputs of fields not drawn). When the browser no
-  longer counts an action as the user's (`navigator.userActivation`), pca.js shows a small
+  longer counts an action as the user's (`navigator.userActivation`), palettecraft.js shows a small
   sheet with a real button for one more tap. WebKit (Safari, every iOS browser) opens a
-  file chooser only inside the click or tap handler itself, so pca.js always shows the
+  file chooser only inside the click or tap handler itself, so palettecraft.js always shows the
   sheet there, and `Ui::picture_button` ("Open picture...") lays a see-through `<label>`
   for the file input over the button each frame, so the tap goes straight to the browser.
   `web::frame_end` (in `Ui::end`) hides the inputs and that label when not drawn. `rfd` and `dirs` are desktop-only
   dependencies; code using them is `cfg`-gated. Don't use `std::time::{Instant, SystemTime}`
   (they panic in wasm); use `miniquad::date::now()`. The web build embeds
   `assets/fonts/DejaVuSans.ttf`. Bump `PLUGIN_VERSION` in `web.rs` together with `version`
-  in `pca.js` when the import list changes.
+  in `palettecraft.js` when the import list changes.
 - `update.rs` – update check: `VERSION` (from Cargo.toml), `UpdateCheck` asks GitHub's
   latest-release API for `tag_name`, only when the user clicks the app's name (compact:
   the logo, widget id `about`). Desktop: a thread with `ureq` (desktop-only dependency);
-  web: `fetch` in pca.js. `app/update_view.rs` draws the "About" dialog; while it is open
+  web: `fetch` in palettecraft.js. `app/update_view.rs` draws the "About" dialog; while it is open
   `Ui::set_covered` keeps everything under it (and the web inputs) from reacting. "Download"
   opens the website (`DOWNLOAD_URL`); on the web "Update now" reloads through the service
   worker. `cargo test -- --ignored` runs the one test that needs the network. The check is
   described in `PRIVACY.md`: update it if what is sent changes.
-- `links.rs` – `open_url` (desktop: `open` / `xdg-open` / `cmd /C start`; web: pca.js) and
+- `links.rs` – `open_url` (desktop: `open` / `xdg-open` / `cmd /C start`; web: palettecraft.js) and
   `KOFI_URL`, used by the "Support on Ko-fi" button (top bar; compact layout: bottom of
   the Palettes pane). `.github/FUNDING.yml` has the same Ko-fi page.
 - `grid.rs` – rule of thirds, golden ratio (phi) grid, Fibonacci spiral, square grid overlays.

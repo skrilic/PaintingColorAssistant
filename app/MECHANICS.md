@@ -1,4 +1,4 @@
-# Painting Colour Assistant: mechanics sheet
+# PaletteCraft: mechanics sheet
 
 There is no original program to match: everything below comes from the person's request
 ("request") or is a design choice made while building ("estimated"). The same values are
@@ -15,7 +15,7 @@ in `mechanics.json`.
 | Recent list length | 10 pictures in the menu; settings kept for the last 100 pictures | estimated |
 | Settings per picture | crop, view, value levels, colour levels, contour detail, lines on top, overlay (kind, grid cells, diagonals, mirroring, line colour and strength), paint type, palette (by name; first palette of that paint type if it is gone), paints per mix, lightening, clicked spot; restored whenever that picture is opened again from a file. New pictures start with the current settings and no crop | request |
 | Settings saved | after every finished change (no mouse button held) and when another picture is opened; "Clear recent list" forgets the settings too | estimated |
-| Recent list saved | JSON next to the palettes (`PaintingColorAssistant/recent.json`); `--screenshot` / `--self-test` never read or write it | estimated |
+| Recent list saved | JSON next to the palettes (`PaletteCraft/recent.json`); `--screenshot` / `--self-test` never read or write it | estimated |
 | Buttons, list rows, menus | react on release (tap); a press that moves more than 10 px before release is a drag, not a tap (so dragging a list on a touch screen does not press what is under the finger). Sliders and the crop frame react on press | estimated |
 | Pick a colour | click or tap on the picture (Original / Greyscale / Value views) gives a recipe for a 5x5 px average | estimated |
 | Select a colour level | left click on the picture or a recipe row (Colour levels view) fades the other levels | estimated |
@@ -24,7 +24,7 @@ in `mechanics.json`.
 | Scroll lists | mouse wheel, 1 row per notch (library: 2 rows), or drag the list (one row per row height dragged) | estimated |
 | Text fields | click to type, Backspace deletes, Enter/Escape/click elsewhere finishes; in the web build a browser input lies over the field, so phones and tablets show their keyboard | estimated |
 | Delete palette | needs a second click ("Click again") | estimated |
-| Palettes saved | automatically after every change, JSON in the user settings folder (`PaintingColorAssistant/palettes.json`) | estimated |
+| Palettes saved | automatically after every change, JSON in the user settings folder (`PaletteCraft/palettes.json`) | estimated |
 
 ## Picture analysis
 

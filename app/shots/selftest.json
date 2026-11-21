@@ -86,7 +86,7 @@
       "step": "recent_menu"
     },
     {
-      "detail": "picked \"painting-colour-assistant-selftest.png\" from the recent menu and it opened as \"painting-colour-assistant-selftest.png\" (list kept in memory only)",
+      "detail": "picked \"palettecraft-selftest.png\" from the recent menu and it opened as \"palettecraft-selftest.png\" (list kept in memory only)",
       "passed": true,
       "step": "open_recent"
     },

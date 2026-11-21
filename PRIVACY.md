@@ -2,7 +2,7 @@
 
 Last updated: 20 November 2026
 
-Painting Colour Assistant is a free, open-source app for painters. It does not collect,
+PaletteCraft is a free, open-source app for painters. It does not collect,
 send or sell any personal data. This page explains what stays where.
 
 ## Your pictures
@@ -15,7 +15,7 @@ entirely in your browser.
 
 - **Desktop app:** your palettes and the list of recently opened pictures (with each
   picture's settings) are saved as files in your user settings folder, in a folder named
-  `PaintingColorAssistant`.
+  `PaletteCraft`.
 - **Web app:** your palettes and the list of recently opened pictures (with each picture's
   settings) are saved in your browser's storage on your device. As a browser cannot open a
   file again by itself, the web app also keeps a copy of the last 10 pictures you opened
@@ -57,6 +57,6 @@ address (see below). The app never checks on its own.
 
 If this policy changes, the new version will be published on this page with a new date,
 and the history of changes is kept in the
-[source repository](https://github.com/skrilic/PaintingColorAssistant/commits/main/PRIVACY.md).
+[source repository](https://github.com/skrilic/PaletteCraft/commits/main/PRIVACY.md).
 For questions, open an issue on
-[GitHub](https://github.com/skrilic/PaintingColorAssistant/issues).
+[GitHub](https://github.com/skrilic/PaletteCraft/issues).

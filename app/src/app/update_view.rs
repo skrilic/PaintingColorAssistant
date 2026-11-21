@@ -33,7 +33,7 @@ impl App {
 
         let x = r.x + 20.0;
         let tw = r.w - 40.0;
-        ui.text_fit("Painting Colour Assistant", x, r.y + 36.0, 18.0, TEXT, tw);
+        ui.text_fit("PaletteCraft", x, r.y + 36.0, 18.0, TEXT, tw);
         ui.text_fit(&format!("Version {}", update::VERSION), x, r.y + 58.0, 14.0, MUTED, tw);
         let (line, note, colour) = match &self.update.state {
             State::Idle | State::Checking => ("Checking for a newer version...".to_string(), String::new(), MUTED),

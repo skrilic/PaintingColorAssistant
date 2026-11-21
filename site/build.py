@@ -19,7 +19,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-REPO = "skrilic/PaintingColorAssistant"
+REPO = "skrilic/PaletteCraft"
 RELEASES = f"https://github.com/{REPO}/releases"
 # Release file name endings (see .github/workflows/release.yml) for each download button.
 PLATFORMS = {"mac": "-macos-universal.zip", "windows": "-windows-x86_64.zip", "linux": "-linux-x86_64.tar.gz"}
@@ -124,13 +124,12 @@ def main() -> None:
 
     release = latest_release()
     home = fill((HERE / "home.html").read_text(), download_fields(release))
-    (out / "index.html").write_text(page("home", "Painting Colour Assistant – a painting plan from a reference picture", home))
+    (out / "index.html").write_text(page("home", "PaletteCraft – a painting plan from a reference picture", home))
     for name, source, title in (("changelog", "CHANGELOG.md", "Changelog"), ("privacy", "PRIVACY.md", "Privacy policy")):
         body = f'        <article class="prose">\n{markdown((ROOT / source).read_text())}\n        </article>'
-        (out / f"{name}.html").write_text(page(name, f"{title} – Painting Colour Assistant", body))
+        (out / f"{name}.html").write_text(page(name, f"{title} – PaletteCraft", body))
 
     shutil.copy(HERE / "style.css", out)
-    shutil.copy(HERE / "sw.js", out)
     shutil.copytree(HERE / "img", out / "img")
     icons = out / "icons"
     icons.mkdir()

@@ -1,6 +1,13 @@
 # Changelog
 
-What changed in each version of Painting Colour Assistant. The newest version is at the top.
+What changed in each version of PaletteCraft (called Painting Colour Assistant up to
+version 0.3.2). The newest version is at the top.
+
+## Unreleased
+
+- **New name: PaletteCraft.** The app, its downloads and its website have a new name and
+  address: [skrilic.github.io/PaletteCraft](https://skrilic.github.io/PaletteCraft/).
+  Palettes and the recent list start empty under the new name.
 
 ## 0.3.2 – 20 November 2026
 
@@ -23,7 +30,7 @@ What changed in each version of Painting Colour Assistant. The newest version is
 ## 0.3.0 – 20 November 2026
 
 - **Web app for phones, tablets and any browser.** Open it at
-  [skrilic.github.io/PaintingColorAssistant/app/](https://skrilic.github.io/PaintingColorAssistant/app/)
+  [skrilic.github.io/PaletteCraft/app/](https://skrilic.github.io/PaletteCraft/app/)
   and install it from the browser. It works without a network connection once opened.
 - **Layout for phones and tablets.** On a narrow screen the app shows one pane at a time:
   the picture with the recipe of the spot you tapped, the picture settings, or the recipes.

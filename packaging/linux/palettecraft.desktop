@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=Painting Colour Assistant
+Name=PaletteCraft
 Comment=Value and colour studies, composition grids and paint mixing recipes
-Exec=painting_color_assistant %f
-Icon=painting-colour-assistant
-StartupWMClass=painting-colour-assistant
+Exec=palettecraft %f
+Icon=palettecraft
+StartupWMClass=palettecraft
 Terminal=false
 Categories=Graphics;
 MimeType=image/png;image/jpeg;image/webp;image/bmp;image/tiff;

@@ -2,7 +2,7 @@
 //! folder on the desktop, the browser's local storage in the web build.
 
 /// Folder name inside the settings folder; also the key prefix in local storage.
-const APP_DIR: &str = "PaintingColorAssistant";
+const APP_DIR: &str = "PaletteCraft";
 
 #[cfg(not(target_arch = "wasm32"))]
 fn path(name: &str) -> Option<std::path::PathBuf> {

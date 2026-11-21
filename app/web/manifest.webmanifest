@@ -1,6 +1,6 @@
 {
-  "name": "Painting Colour Assistant",
-  "short_name": "Colour Assistant",
+  "name": "PaletteCraft",
+  "short_name": "PaletteCraft",
   "description": "Value and colour studies, composition overlays and paint mixing recipes from a reference picture.",
   "id": "./",
   "start_url": "./",

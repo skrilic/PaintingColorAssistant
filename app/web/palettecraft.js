@@ -1,4 +1,4 @@
-// Painting Colour Assistant, web build: the browser side of src/web.rs, as a miniquad
+// PaletteCraft, web build: the browser side of src/web.rs, as a miniquad
 // plugin. Load after gl.js and before load(...).
 "use strict";
 
@@ -28,11 +28,11 @@
             return;
         }
         const sheet = document.createElement("div");
-        sheet.className = "pca-sheet";
+        sheet.className = "pc-sheet";
         const box = document.createElement("div");
         const go = document.createElement("button");
         go.textContent = label;
-        go.className = "pca-go";
+        go.className = "pc-go";
         const cancel = document.createElement("button");
         cancel.textContent = "Cancel";
         const close = () => sheet.remove();
@@ -46,8 +46,8 @@
 
     // ---------- open a picture ----------
 
-    // A see-through label for the file input lies over "Open picture..." (pca_picture_button),
-    // so the click or tap itself opens the chooser, as WebKit requires. pca_open_picture is
+    // A see-through label for the file input lies over "Open picture..." (pc_picture_button),
+    // so the click or tap itself opens the chooser, as WebKit requires. pc_open_picture is
     // for the app asking at another time; it goes through the sheet when needed.
     let input = null;
     let pick = null;
@@ -59,9 +59,9 @@
             input = document.createElement("input");
             input.type = "file";
             input.accept = "image/*";
-            input.id = "pca-file";
+            input.id = "pc-file";
             // hidden from view but not display: none, which some WebKit versions won't open
-            input.className = "pca-file";
+            input.className = "pc-file";
             input.addEventListener("change", async () => {
                 const file = input.files[0];
                 input.value = "";
@@ -74,7 +74,7 @@
             });
             pick = document.createElement("label");
             pick.htmlFor = input.id;
-            pick.className = "pca-pick";
+            pick.className = "pc-pick";
             document.body.append(input, pick);
         }
         return input;
@@ -89,7 +89,7 @@
     function pictures(mode, use) {
         if (pictureDb == null) {
             pictureDb = new Promise((resolve, reject) => {
-                const open = indexedDB.open("PaintingColorAssistant", 1);
+                const open = indexedDB.open("PaletteCraft", 1);
                 open.onupgradeneeded = () => open.result.createObjectStore("pictures");
                 open.onsuccess = () => resolve(open.result);
                 open.onerror = () => reject(open.error);
@@ -116,7 +116,7 @@
         if (f) return f;
         const el = document.createElement("input");
         el.type = "text";
-        el.className = "pca-field";
+        el.className = "pc-field";
         el.maxLength = 60;
         el.autocomplete = "off";
         el.spellcheck = false;
@@ -175,13 +175,13 @@
 
     // ---------- local storage ----------
 
-    // pca_storage_len encodes the value; pca_storage_get then copies that same encoding.
+    // pc_storage_len encodes the value; pc_storage_get then copies that same encoding.
     let stored = null;
 
     function register_plugin(importObject) {
         const env = importObject.env;
 
-        env.pca_text_field = (idPtr, idLen, x, y, w, h, valuePtr, valueLen, phPtr, phLen) => {
+        env.pc_text_field = (idPtr, idLen, x, y, w, h, valuePtr, valueLen, phPtr, phLen) => {
             const id = text(idPtr, idLen);
             const f = field(id);
             const el = f.el;
@@ -202,11 +202,11 @@
             if (!focused && el.value !== value) el.value = value;
             return focused ? 1 : 0;
         };
-        env.pca_text_field_take = (outPtr) => {
+        env.pc_text_field_take = (outPtr) => {
             if (typedOut != null) bytes(outPtr, typedOut.length).set(typedOut);
             typedOut = null;
         };
-        env.pca_frame_end = () => {
+        env.pc_frame_end = () => {
             for (const [id, f] of fields) {
                 if (!seen.has(id) && f.el.style.display !== "none") {
                     if (document.activeElement === f.el) f.el.blur();
@@ -218,7 +218,7 @@
             pickSeen = false;
         };
 
-        env.pca_picture_button = (x, y, w, h) => {
+        env.pc_picture_button = (x, y, w, h) => {
             chooser();
             pickSeen = true;
             pick.style.display = "block";
@@ -227,54 +227,54 @@
             pick.style.width = w + "px";
             pick.style.height = h + "px";
         };
-        env.pca_open_picture = () => runInGesture("Choose a picture", () => chooser().click());
-        env.pca_picture_len = () => (picture == null ? -1 : picture.data.length);
-        env.pca_picture_name_len = () => (picture == null ? 0 : picture.name.length);
-        env.pca_picture_store = (keyPtr, keyLen, dataPtr, dataLen) => {
+        env.pc_open_picture = () => runInGesture("Choose a picture", () => chooser().click());
+        env.pc_picture_len = () => (picture == null ? -1 : picture.data.length);
+        env.pc_picture_name_len = () => (picture == null ? 0 : picture.name.length);
+        env.pc_picture_store = (keyPtr, keyLen, dataPtr, dataLen) => {
             const key = text(keyPtr, keyLen);
             const data = bytes(dataPtr, dataLen).slice();
             pictures("readwrite", (store) => store.put(data, key)).catch(() => {
                 // storage full or turned off: the picture is just not in the menu next time
             });
         };
-        env.pca_pictures_keep = (keysPtr, keysLen) => {
+        env.pc_pictures_keep = (keysPtr, keysLen) => {
             const keep = new Set(text(keysPtr, keysLen).split("\n"));
             pictures("readwrite", (store) => {
                 const all = store.getAllKeys();
                 all.onsuccess = () => all.result.filter((k) => !keep.has(k)).forEach((k) => store.delete(k));
             }).catch(() => {});
         };
-        env.pca_picture_load = (keyPtr, keyLen, namePtr, nameLen) => {
+        env.pc_picture_load = (keyPtr, keyLen, namePtr, nameLen) => {
             const key = text(keyPtr, keyLen);
             const name = bytes(namePtr, nameLen).slice();
             pictures("readonly", (store) => store.get(key))
                 .catch(() => undefined)
                 .then((data) => { picture = { name, data: data instanceof Uint8Array ? data : new Uint8Array(0) }; });
         };
-        env.pca_picture_take = (dataPtr, namePtr) => {
+        env.pc_picture_take = (dataPtr, namePtr) => {
             if (picture == null) return;
             bytes(dataPtr, picture.data.length).set(picture.data);
             bytes(namePtr, picture.name.length).set(picture.name);
             picture = null;
         };
 
-        env.pca_open_url = (urlPtr, urlLen) => {
+        env.pc_open_url = (urlPtr, urlLen) => {
             const url = text(urlPtr, urlLen);
             runInGesture("Open " + new URL(url).host, () => window.open(url, "_blank", "noopener"));
         };
 
-        env.pca_check_update = (urlPtr, urlLen) => {
+        env.pc_check_update = (urlPtr, urlLen) => {
             updateAnswer = null;
             latestTag(text(urlPtr, urlLen)).then((answer) => { updateAnswer = encoder.encode(answer); });
         };
-        env.pca_update_len = () => (updateAnswer == null ? -1 : updateAnswer.length);
-        env.pca_update_take = (outPtr) => {
+        env.pc_update_len = () => (updateAnswer == null ? -1 : updateAnswer.length);
+        env.pc_update_take = (outPtr) => {
             if (updateAnswer != null) bytes(outPtr, updateAnswer.length).set(updateAnswer);
             updateAnswer = null;
         };
-        env.pca_reload_app = () => { reloadApp(); };
+        env.pc_reload_app = () => { reloadApp(); };
 
-        env.pca_save_file = (namePtr, nameLen, mimePtr, mimeLen, dataPtr, dataLen) => {
+        env.pc_save_file = (namePtr, nameLen, mimePtr, mimeLen, dataPtr, dataLen) => {
             const name = text(namePtr, nameLen);
             const blob = new Blob([bytes(dataPtr, dataLen).slice()], { type: text(mimePtr, mimeLen) });
             runInGesture("Save " + name, () => {
@@ -289,7 +289,7 @@
             });
         };
 
-        env.pca_storage_len = (keyPtr, keyLen) => {
+        env.pc_storage_len = (keyPtr, keyLen) => {
             let value = null;
             try {
                 value = window.localStorage.getItem(text(keyPtr, keyLen));
@@ -299,11 +299,11 @@
             stored = value == null ? null : encoder.encode(value);
             return stored == null ? -1 : stored.length;
         };
-        env.pca_storage_get = (keyPtr, keyLen, outPtr) => {
+        env.pc_storage_get = (keyPtr, keyLen, outPtr) => {
             if (stored != null) bytes(outPtr, stored.length).set(stored);
             stored = null;
         };
-        env.pca_storage_set = (keyPtr, keyLen, valuePtr, valueLen) => {
+        env.pc_storage_set = (keyPtr, keyLen, valuePtr, valueLen) => {
             try {
                 window.localStorage.setItem(text(keyPtr, keyLen), text(valuePtr, valueLen));
                 return 1;
@@ -323,5 +323,5 @@
         }
     }
 
-    miniquad_add_plugin({ register_plugin, on_init, name: "pca", version: 6 });
+    miniquad_add_plugin({ register_plugin, on_init, name: "pc", version: 6 });
 })();

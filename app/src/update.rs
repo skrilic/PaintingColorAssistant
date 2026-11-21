@@ -1,16 +1,16 @@
 //! "Is there a newer version?": asks GitHub for the latest release, only when the user
-//! clicks the app's name. Desktop: a background thread with `ureq`; web: `fetch` in pca.js.
+//! clicks the app's name. Desktop: a background thread with `ureq`; web: `fetch` in palettecraft.js.
 
 /// This build's version (from Cargo.toml).
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// GitHub's description of the latest published release (JSON with `tag_name`).
-pub const LATEST_RELEASE_API: &str = "https://api.github.com/repos/skrilic/PaintingColorAssistant/releases/latest";
+pub const LATEST_RELEASE_API: &str = "https://api.github.com/repos/skrilic/PaletteCraft/releases/latest";
 
 /// Project website, whose download buttons always point at the latest release (the web
 /// app updates itself instead).
 #[cfg(not(target_arch = "wasm32"))]
-pub const DOWNLOAD_URL: &str = "https://skrilic.github.io/PaintingColorAssistant/";
+pub const DOWNLOAD_URL: &str = "https://skrilic.github.io/PaletteCraft/";
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum State {
@@ -104,7 +104,7 @@ fn latest_tag() -> Result<String, String> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(std::time::Duration::from_secs(15)))
         // GitHub's API refuses requests without a User-Agent
-        .user_agent(format!("PaintingColourAssistant/{VERSION}"))
+        .user_agent(format!("PaletteCraft/{VERSION}"))
         .build()
         .into();
     let body = agent

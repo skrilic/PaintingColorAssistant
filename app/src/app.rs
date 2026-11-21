@@ -707,7 +707,7 @@ impl App {
             }
             return;
         }
-        ui.text("Painting Colour Assistant", 50.0, 25.0, 16.0, TEXT);
+        ui.text("PaletteCraft", 50.0, 25.0, 16.0, TEXT);
         ui.text(&format!("Version {}", crate::update::VERSION), 50.0, 41.0, 12.0, MUTED);
         let tabs = Rect::new(LEFT_W + 20.0, 10.0, 260.0, 32.0);
         if ui.button_ex("tab_palettes", Rect::new(tabs.x, tabs.y, 125.0, tabs.h), "1  Palettes", self.screen == Screen::Palettes) {

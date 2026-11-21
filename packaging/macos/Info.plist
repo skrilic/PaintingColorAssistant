@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Painting Colour Assistant</string>
+    <string>PaletteCraft</string>
     <key>CFBundleDisplayName</key>
-    <string>Painting Colour Assistant</string>
+    <string>PaletteCraft</string>
     <key>CFBundleIdentifier</key>
-    <string>io.github.skrilic.paintingcolourassistant</string>
+    <string>io.github.skrilic.palettecraft</string>
     <key>CFBundleExecutable</key>
-    <string>painting_color_assistant</string>
+    <string>palettecraft</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundlePackageType</key>

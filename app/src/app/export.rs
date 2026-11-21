@@ -261,7 +261,7 @@ impl App {
         let mut p = Pages {
             doc: Doc::new(A4_W, A4_H),
             y: MARGIN,
-            footer: format!("Painting Colour Assistant  -  reference brochure for \"{}\"  -  {}", img.name, date),
+            footer: format!("PaletteCraft  -  reference brochure for \"{}\"  -  {}", img.name, date),
         };
         let cw = p.content_w();
 

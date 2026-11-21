@@ -28,7 +28,7 @@ enum Action {
 }
 
 /// File name of the picture `main` writes to the temp folder and puts in the recent list.
-pub const RECENT_PICTURE: &str = "painting-colour-assistant-selftest.png";
+pub const RECENT_PICTURE: &str = "palettecraft-selftest.png";
 
 pub struct StepResult {
     pub step: String,

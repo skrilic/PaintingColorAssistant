@@ -1,13 +1,13 @@
 <img src="packaging/icon/icon-256.png" alt="" width="96" align="right">
 
-# Painting Colour Assistant
+# PaletteCraft
 
-An app for painters planning a painting from a reference picture, on the desktop and in
-the browser. Open an image, crop it, study its values and colours, lay a composition grid
-over it, and get Kubelka-Munk mixing recipes for every colour, made from the paints in
-your own palettes.
+Value studies and paint mixing recipes from a reference picture: an app for painters
+planning a painting, on the desktop and in the browser. Open an image, crop it, study its
+values and colours, lay a composition grid over it, and get Kubelka-Munk mixing recipes
+for every colour, made from the paints in your own palettes.
 
-**Website:** <https://skrilic.github.io/PaintingColorAssistant/> – downloads, the web app,
+**Website:** <https://skrilic.github.io/PaletteCraft/> – downloads, the web app,
 [changelog](CHANGELOG.md) and [privacy policy](PRIVACY.md).
 
 ![Painting screen](app/shots/now.png)
@@ -42,8 +42,8 @@ your own palettes.
   name and folder.
 
 Palettes are saved automatically to
-`<config dir>/PaintingColorAssistant/palettes.json`
-(on Linux `~/.config/PaintingColorAssistant/palettes.json`), and the recently opened
+`<config dir>/PaletteCraft/palettes.json`
+(on Linux `~/.config/PaletteCraft/palettes.json`), and the recently opened
 pictures with their settings to `recent.json` in the same folder.
 
 ## Support
@@ -65,11 +65,11 @@ not check on its own.
 ## Download
 
 **Phones, tablets and any browser:** open the web app at
-<https://skrilic.github.io/PaintingColorAssistant/app/> and install it from the browser
+<https://skrilic.github.io/PaletteCraft/app/> and install it from the browser
 (Safari: *Share → Add to Home Screen*; Chrome: *Install app*). It works offline once opened.
 
 Ready-made builds for Linux, macOS and Windows are on the
-[Releases](https://github.com/skrilic/PaintingColorAssistant/releases) page, with
+[Releases](https://github.com/skrilic/PaletteCraft/releases) page, with
 installation notes for each system.
 
 On Linux, run `./install.sh` in the unpacked folder to add the app to your applications

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>Painting Colour Assistant</title>
+    <title>PaletteCraft</title>
     <meta name="description" content="Value and colour studies, composition overlays and paint mixing recipes from a reference picture.">
     <meta name="theme-color" content="#25262b">
     <link rel="manifest" href="manifest.webmanifest">
@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Colour Assistant">
+    <meta name="apple-mobile-web-app-title" content="PaletteCraft">
     <style>
         html, body {
             margin: 0;
@@ -31,8 +31,8 @@
             outline: none;
             touch-action: none;
         }
-        /* Inputs laid over the app's text fields (see pca.js); visible only while typing. */
-        .pca-field {
+        /* Inputs laid over the app's text fields (see palettecraft.js); visible only while typing. */
+        .pc-field {
             position: fixed;
             display: none;
             box-sizing: border-box;
@@ -47,11 +47,11 @@
             /* 16px or more: iOS zooms the page into smaller inputs */
             font: 16px system-ui, sans-serif;
         }
-        .pca-field:focus {
+        .pc-field:focus {
             opacity: 1;
         }
-        /* Laid over "Open picture..." (see pca.js): a tap on it opens the file chooser. */
-        .pca-pick {
+        /* Laid over "Open picture..." (see palettecraft.js): a tap on it opens the file chooser. */
+        .pc-pick {
             position: fixed;
             display: none;
             cursor: pointer;
@@ -61,11 +61,11 @@
         /* The app no longer sees the mouse over the button, so the label lightens it the way
            the app's hover does (PANEL2 to PANEL3). Only with a mouse: a touch leaves :hover on. */
         @media (hover: hover) {
-            .pca-pick:hover {
+            .pc-pick:hover {
                 background: rgba(255, 255, 255, 0.065);
             }
         }
-        .pca-file {
+        .pc-file {
             position: fixed;
             left: 0;
             top: 0;
@@ -75,7 +75,7 @@
             pointer-events: none;
         }
         /* Asks for a tap when the browser needs one to open a file chooser or save a file. */
-        .pca-sheet {
+        .pc-sheet {
             position: fixed;
             inset: 0;
             display: flex;
@@ -83,14 +83,14 @@
             justify-content: center;
             background: rgba(0, 0, 0, 0.45);
         }
-        .pca-sheet > div {
+        .pc-sheet > div {
             display: flex;
             flex-direction: column;
             gap: 10px;
             width: min(420px, 100% - 24px);
             margin-bottom: 24px;
         }
-        .pca-sheet button {
+        .pc-sheet button {
             padding: 14px;
             border: 1px solid #4d4f59;
             border-radius: 10px;
@@ -98,7 +98,7 @@
             color: #ebebf0;
             font: 17px system-ui, sans-serif;
         }
-        .pca-sheet button.pca-go {
+        .pc-sheet button.pc-go {
             border-color: #ed9e45;
             background: #6b4d2b;
             color: #ffdba8;
@@ -117,11 +117,11 @@
 </head>
 <body>
     <canvas id="glcanvas" tabindex="1"></canvas>
-    <div id="loading">Loading Painting Colour Assistant&hellip;</div>
+    <div id="loading">Loading PaletteCraft&hellip;</div>
     <script src="gl.js"></script>
-    <script src="pca.js"></script>
+    <script src="palettecraft.js"></script>
     <script>
-        load("painting_color_assistant.wasm");
+        load("palettecraft.wasm");
         // Installable, and works without a network connection once opened (sw.js).
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
